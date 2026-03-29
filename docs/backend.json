@@ -1,0 +1,159 @@
+
+{
+  "entities": {
+    "UserAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserAccount",
+      "type": "object",
+      "description": "Stores user account information for the VogueVerse website.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user account."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username used for login."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address associated with the user account.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "googleId": {
+          "type": "string",
+          "description": "The Google ID associated with the user account, if the user signed up via Google."
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "The date and time when the user registered.",
+          "format": "date-time"
+        },
+        "loyaltyPoints": {
+            "type": "number",
+            "description": "The number of loyalty points the user has accumulated."
+        },
+        "phone": {
+            "type": "string",
+            "description": "The user's phone number."
+        },
+        "address": {
+            "type": "string",
+            "description": "The user's street address."
+        },
+        "city": {
+            "type": "string",
+            "description": "The user's city."
+        },
+        "state": {
+            "type": "string",
+            "description": "The user's state or province."
+        },
+        "postalCode": {
+            "type": "string",
+            "description": "The user's postal or zip code."
+        },
+        "country": {
+            "type": "string",
+            "description": "The user's country."
+        },
+        "prizeLabel": {
+            "type": "string",
+            "description": "The label of the currently active prize from the prize wheel."
+        },
+        "prizeExpiry": {
+            "type": "number",
+            "description": "The Unix timestamp (in milliseconds) when the current prize expires."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "registrationDate"
+      ]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "type": "object",
+      "description": "Stores a customer complaint or issue.",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "issue": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["new", "in-progress", "resolved"] }
+      },
+      "required": ["name", "email", "issue", "createdAt", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "type": "object",
+      "description": "Stores a product review from a customer.",
+      "properties": {
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "productName", "rating", "comment", "authorName", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserAccount",
+          "schema": {
+            "$ref": "#/backend/entities/UserAccount"
+          },
+          "description": "Stores user account information. The 'userId' is the Firebase Authentication UID, ensuring only the authenticated user can access their data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, obtained from Firebase Authentication (request.auth.uid)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/complaints/{complaintId}",
+        "definition": {
+            "entityName": "Complaint",
+            "schema": {
+                "$ref": "#/backend/entities/Complaint"
+            },
+            "description": "Stores customer complaints."
+        }
+      },
+      {
+        "path": "/reviews/{reviewId}",
+        "definition": {
+            "entityName": "Review",
+            "schema": {
+                "$ref": "#/backend/entities/Review"
+            },
+            "description": "Stores product reviews."
+        }
+      }
+    ],
+    "reasoning": "This Firestore data structure focuses on storing user account information, complaints, and reviews. It follows the recommended practices of clarity, security, and scalability. The structure uses a path-based ownership model for user data stored in the `/users/{userId}` collection. Authentication is handled by Firebase Authentication, and the `userId` obtained from `request.auth.uid` is used to secure access to user-specific data. The `complaints` collection allows anyone to submit an issue, while the `reviews` collection allows any user to submit a review."
+  }
+}
