@@ -1,3 +1,4 @@
+
 import Stripe from 'stripe';
 import { allProducts as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
@@ -42,7 +43,6 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
   for (const [key, value] of Object.entries(metadata)) {
     if (reservedKeys.includes(key.toLowerCase())) continue;
 
-    // We look for the ":" and "-" delimiters of the compact format
     if (value && value.includes(':')) {
       const color = key.trim();
       const pairs = value.split('-');
@@ -60,7 +60,10 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
             // Robust weight lookup: check exact match, then uppercase match
             let weight = defaultWeight;
             if (sizeWeights) {
-                weight = sizeWeights[size] ?? sizeWeights[size.toUpperCase()] ?? defaultWeight;
+                // Find weight by normalized size key
+                const normalizedSize = size.toUpperCase();
+                const weightKey = Object.keys(sizeWeights).find(k => k.toUpperCase() === normalizedSize);
+                weight = weightKey ? sizeWeights[weightKey] : defaultWeight;
             }
 
             stock.push({
