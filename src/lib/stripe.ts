@@ -42,6 +42,7 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
   for (const [key, value] of Object.entries(metadata)) {
     if (reservedKeys.includes(key.toLowerCase())) continue;
 
+    // We look for the ":" and "-" delimiters of the compact format
     if (value && value.includes(':')) {
       const color = key.trim();
       const pairs = value.split('-');
@@ -56,7 +57,12 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
         if (size && qtyStr) {
           const quantity = parseInt(qtyStr, 10);
           if (!isNaN(quantity)) {
-            const weight = sizeWeights?.[size] || defaultWeight;
+            // Robust weight lookup: check exact match, then uppercase match
+            let weight = defaultWeight;
+            if (sizeWeights) {
+                weight = sizeWeights[size] ?? sizeWeights[size.toUpperCase()] ?? defaultWeight;
+            }
+
             stock.push({
               color,
               size,
