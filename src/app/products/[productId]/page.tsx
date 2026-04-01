@@ -61,7 +61,6 @@ export default function ProductPage({ params }: { params: Promise<{ productId: s
       if (fetchedProduct) {
         setProduct(fetchedProduct);
       } else {
-        // Only trigger notFound if we actually failed to find it after attempting
         setIsLoaded(true);
       }
     }
@@ -216,20 +215,22 @@ function ProductDetail({ product }: { product: Product }) {
           <p className="text-base text-muted-foreground">{product.description}</p>
 
           <div>
-            <h3 className="text-lg font-semibold mb-2">Colors</h3>
-            <div className="flex flex-wrap gap-2">
+            <h3 className="text-lg font-semibold mb-3 underline">Style & Logo Options</h3>
+            <div className="flex flex-wrap gap-3">
               {product.colors?.map(color => (
                 <button
                   key={color.name}
                   title={color.name}
                   className={cn(
-                    "w-8 h-8 rounded-full border-2 transition-all transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
-                    selectedColor === color.name ? "border-primary scale-105" : "border-gray-200"
+                    "flex flex-col w-20 h-14 rounded-md border-2 overflow-hidden transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
+                    selectedColor === color.name ? "border-primary" : "border-gray-200"
                   )}
-                  style={{ backgroundColor: color.hex }}
                   onClick={() => handleColorSelect(color.name)}
                 >
-                  <span className="sr-only">{color.name}</span>
+                  <div className="flex-1 w-full" style={{ backgroundColor: color.hex }} />
+                  <div className="h-6 w-full bg-background flex items-center justify-center text-[8px] font-bold uppercase tracking-tighter leading-none px-1 text-center">
+                    {color.logoType}
+                  </div>
                 </button>
               ))}
             </div>

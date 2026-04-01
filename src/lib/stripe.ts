@@ -1,4 +1,3 @@
-
 import Stripe from 'stripe';
 import { allProducts as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
@@ -103,8 +102,6 @@ export async function getStripeProducts(): Promise<Product[]> {
 
       const local = localProducts.find(p => p.id === product.id);
       
-      // PRIORITIZE STRIPE METADATA FOR WEIGHT
-      // If you add a "weight" key in Stripe Metadata, it will use that over the hardcoded file.
       const stripeWeight = product.metadata.weight ? parseFloat(product.metadata.weight) : null;
       const defaultWeight = stripeWeight || local?.weight || 8;
       
@@ -114,11 +111,18 @@ export async function getStripeProducts(): Promise<Product[]> {
       const colorNames = Array.from(new Set(stock.map(s => s.color)));
       
       const colors = colorNames.map(name => {
-        // SMART PARSING: If name is "Black (Color Logo)", it finds "black" in the hex map
+        // Any name containing "B&W Logo" gets the B&W label
+        // Anything else gets "Color Logo"
+        const isBW = name.toLowerCase().includes('b&w logo');
+        const logoType = isBW ? 'B&W Logo' : 'Color Logo';
+        
+        // Match the hex code using just the color part (e.g. "Black" from "Black (B&W Logo)")
         const baseColorName = name.split('(')[0].trim().toLowerCase();
+        
         return {
-          name,
-          hex: colorHexMap[baseColorName] || '#000000'
+          name, // Full identifier for Stripe
+          hex: colorHexMap[baseColorName] || '#000000',
+          logoType
         };
       });
 
@@ -138,7 +142,7 @@ export async function getStripeProducts(): Promise<Product[]> {
         features: local?.features || [],
         rating: local?.rating || 5,
         reviewCount: local?.reviewCount || 0,
-        isNew: product.created > (Date.now() / 1000) - (30 * 24 * 60 * 60) // Marked as new if created in last 30 days
+        isNew: product.created > (Date.now() / 1000) - (30 * 24 * 60 * 60)
       } as Product;
     }).filter((p): p is Product => p !== null);
 

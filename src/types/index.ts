@@ -34,7 +34,7 @@ export type Product = {
   hoverVideo?: string;
   style: string;
   sizes: string[];
-  colors: { name: string, hex: string }[];
+  colors: { name: string, hex: string, logoType: string }[];
   bestseller?: boolean;
   isNew?: boolean;
   onSale?: boolean;
