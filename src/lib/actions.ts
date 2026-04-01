@@ -1,7 +1,11 @@
 
 'use server';
 
-import { getProducts as getStripeProducts, getFilterOptions as getStripeFilterOptions } from '@/lib/products';
+import { 
+  getProducts as getStripeProducts, 
+  getFilterOptions as getStripeFilterOptions,
+  getProductById as getStripeProductById 
+} from '@/lib/products';
 import type { Product, FilterOptions } from '@/types';
 
 /**
@@ -13,6 +17,18 @@ export async function fetchProductsAction(options?: { category?: string; sort?: 
   } catch (error) {
     console.error("Error in fetchProductsAction:", error);
     return [];
+  }
+}
+
+/**
+ * Server Action to fetch a single product by ID safely.
+ */
+export async function fetchProductByIdAction(id: string) {
+  try {
+    return await getStripeProductById(id);
+  } catch (error) {
+    console.error("Error in fetchProductByIdAction:", error);
+    return undefined;
   }
 }
 

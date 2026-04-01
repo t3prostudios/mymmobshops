@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getProducts } from '@/lib/products';
+import { fetchProductsAction } from '@/lib/actions';
 import type { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,8 +46,8 @@ const layerOrder = {
 const productMapping: Record<string, string> = {
   '04': 'prod_Tm0HnmbMNAV5Ab', // Hats -> Trucker Hats
   '01': 'prod_TlOIBgsfsOT6Ac', // Sweatshirts -> Graphic Hoodie
-  '02': 'prod_TlO9hSyBakBOFx', // Sweatpants -> Jogger Set
-  '07': 'prod_TlO9hSyBakBOFx', // Full -> Jogger Set
+  '02': 'prod_TlO33CirJ52rIb', // Sweatpants -> Adult Joggers
+  '07': 'prod_TlOIBgsfsOT6Ac_set', // Full -> Jogger Set
 };
 
 export default function CreateYourLookPage() {
@@ -59,7 +60,7 @@ export default function CreateYourLookPage() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-        const fetchedProducts = await getProducts();
+        const fetchedProducts = await fetchProductsAction();
         setProducts(fetchedProducts);
         setIsLoading(false);
     };
@@ -97,26 +98,14 @@ export default function CreateYourLookPage() {
   };
 
   const handleAddToCart = (product: Product, colorName: string) => {
-    // The visualizer doesn't have size selection, so we'll add the first available size for the selected color.
-
-    // Special handling for the Jogger set which has variants
-    if (product.id === 'prod_TlO9hSyBakBOFx' && product.variants) {
-      // The visualizer also doesn't distinguish between male/female variants for the jogger set.
-      // We'll add the first variant as a default. A more robust implementation
-      // would require a UI for the user to select the variant.
-      addToCart(product, product.variants[0], undefined, { openCart: false });
-      return;
-    }
-    
     // Find the first available stock item for the selected color
     const stockItem = product.stock.find(
-      (s) => s.color === colorName && s.quantity > 0
+      (s) => s.color.toLowerCase() === colorName.toLowerCase() && s.quantity > 0
     );
 
     if (stockItem) {
       addToCart(product, undefined, stockItem, { openCart: false });
     } else {
-      // If no stock is available for that color, inform the user.
       toast({
         variant: "destructive",
         title: "Out of Stock",
@@ -155,8 +144,8 @@ export default function CreateYourLookPage() {
                 const color = colors.find(c => c.code === colorCode);
                 
                 if (product && item && color) {
-                  const displayImage = product.variants && product.variants.length > 0 ? product.variants[0].image : product.images[0];
-                  const displayPrice = product.variants && product.variants.length > 0 ? product.variants[0].price : product.price;
+                  const displayImage = product.images[0];
+                  const displayPrice = product.price;
 
                   return (
                      <li key={itemCode} className="flex items-center justify-between gap-3">
@@ -181,7 +170,6 @@ export default function CreateYourLookPage() {
                   );
                 }
 
-                // Fallback for items without a product mapping
                 if (item && color) {
                   return <li key={itemCode} className="text-muted-foreground">{color.name} {item.name}</li>;
                 }
@@ -297,17 +285,11 @@ export default function CreateYourLookPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {desktopWardrobe}
           <div className="md:col-span-2 relative aspect-[9/16] w-full mx-auto md:max-w-md">
-            {/* This is the main container for all visual elements that scale together. */}
-            {/* You can adjust this group's overall position and scale here. */}
             <div className="absolute inset-0 transform scale-[1] translate-x-[0rem] translate-y-[0rem]">
-              {/* Background Video */}
-              {/* Edit scale-[1] to zoom, translate-x-[0rem] to move left/right, translate-y-[0rem] to move up/down */}
               <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover -z-20 transform scale-[1] translate-x-[0rem] translate-y-[0rem]">
                 <source src="/Create-Ur-look/mmob-sc00.mp4" type="video/mp4" />
               </video>
               
-              {/* --- MANNEQUIN STAND --- */}
-              {/* Edit scale-[1] to zoom, translate-x-[0rem] to move left/right, translate-y-[0rem] to move up/down */}
               <Image 
                   src="/images/mmob-display00.png" 
                   alt="Base model stand" 
@@ -315,8 +297,6 @@ export default function CreateYourLookPage() {
                   className="object-contain -z-10 transform scale-[1] translate-x-[-0.11rem] translate-y-[2.4rem]" 
               />
               
-              {/* --- BASE MODEL --- */}
-              {/* Edit scale-[1] to zoom, translate-x-[0rem] to move left/right, translate-y-[0rem] to move up/down */}
               <Image 
                   src="/Create-Ur-look/0000.png" 
                   alt="Base model" 
@@ -325,7 +305,6 @@ export default function CreateYourLookPage() {
                   priority 
               />
 
-              {/* Clothing Layers */}
               {Object.keys(selections)
                   .sort((a, b) => (layerOrder[a as keyof typeof layerOrder] || 0) - (layerOrder[b as keyof typeof layerOrder] || 0))
                   .map(itemCode => {
@@ -344,8 +323,6 @@ export default function CreateYourLookPage() {
                               imageName = `${colorCode}${itemCode}`;
                           }
                           const imagePath = `${imageDirectory}${imageName}.png`;
-                          {/* --- CLOTHING LAYERS --- */}
-                          {/* Edit scale-[1] to zoom, translate-x-[0rem] to move left/right, translate-y-[0rem] to move up/down */}
                           return <Image key={imagePath} src={imagePath} alt="" fill className="object-contain transform scale-[1] translate-x-[-0.3rem] translate-y-[2rem]" />;
                       }
                       return null;
@@ -355,7 +332,7 @@ export default function CreateYourLookPage() {
         </div>
       </div>
       {mobileWardrobe}
-      <div className="md:hidden h-48"></div> {/* Spacer for mobile to prevent content from being hidden behind the tabs */}
+      <div className="md:hidden h-48"></div>
     </div>
   );
 }

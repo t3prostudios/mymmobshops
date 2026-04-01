@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, Suspense, useRef, use } from "react";
-import { getProductById } from "@/lib/products";
+import { fetchProductByIdAction } from "@/lib/actions";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
@@ -53,20 +53,23 @@ function ProductPageSkeleton() {
 export default function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params);
   const [product, setProduct] = useState<Product | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
-      const fetchedProduct = await getProductById(productId);
+      const fetchedProduct = await fetchProductByIdAction(productId);
       if (fetchedProduct) {
         setProduct(fetchedProduct);
       } else {
-        notFound();
+        // Only trigger notFound if we actually failed to find it after attempting
+        setIsLoaded(true);
       }
     }
     fetchProduct();
   }, [productId]);
   
   if (!product) {
+    if (isLoaded) notFound();
     return <ProductPageSkeleton />;
   }
 
@@ -89,8 +92,6 @@ function ProductDetail({ product }: { product: Product }) {
   const getInitialSize = () => {
     if (!product) return undefined;
     
-    // If no color is selected, or if the product has no specific colors/sizes defined,
-    // just return the first available size.
     if (!selectedColor && product.sizes.length > 0) return product.sizes[0];
 
     const firstAvailableSize = product.sizes?.find(size => 
@@ -103,9 +104,8 @@ function ProductDetail({ product }: { product: Product }) {
   const [userRating, setUserRating] = useState(0);
 
   useEffect(() => {
-    // Reset size when color changes
     setSelectedSize(getInitialSize());
-  }, [selectedColor, product]); // Depend on product as well
+  }, [selectedColor, product]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -122,7 +122,7 @@ function ProductDetail({ product }: { product: Product }) {
   }, [isHovered, product.hoverVideo]);
 
   if (!product) {
-    return null; // Should be handled by parent
+    return null;
   }
 
   const handleColorSelect = (color: string) => {
@@ -134,7 +134,6 @@ function ProductDetail({ product }: { product: Product }) {
     if (stockItem) {
         addToCart(product, undefined, stockItem);
     } else {
-        // Fallback for products without complex stock
         addToCart(product);
     }
   };
