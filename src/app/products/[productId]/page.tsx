@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import { useState, useEffect, Suspense, useRef, use } from "react";
 import { getProductById } from "@/lib/products";
 import { notFound } from "next/navigation";
 import Image from "next/image";
@@ -50,12 +50,13 @@ function ProductPageSkeleton() {
   );
 }
 
-export default function ProductPage({ params }: { params: { productId: string } }) {
+export default function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
+  const { productId } = use(params);
   const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     async function fetchProduct() {
-      const fetchedProduct = await getProductById(params.productId);
+      const fetchedProduct = await getProductById(productId);
       if (fetchedProduct) {
         setProduct(fetchedProduct);
       } else {
@@ -63,7 +64,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
       }
     }
     fetchProduct();
-  }, [params.productId]);
+  }, [productId]);
   
   if (!product) {
     return <ProductPageSkeleton />;
