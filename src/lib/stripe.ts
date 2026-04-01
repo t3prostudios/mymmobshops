@@ -57,10 +57,8 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
         if (size && qtyStr) {
           const quantity = parseInt(qtyStr, 10);
           if (!isNaN(quantity)) {
-            // Robust weight lookup: check exact match, then uppercase match
             let weight = defaultWeight;
             if (sizeWeights) {
-                // Find weight by normalized size key
                 const normalizedSize = size.toUpperCase();
                 const weightKey = Object.keys(sizeWeights).find(k => k.toUpperCase() === normalizedSize);
                 weight = weightKey ? sizeWeights[weightKey] : defaultWeight;
@@ -110,10 +108,15 @@ export async function getStripeProducts(): Promise<Product[]> {
       
       const sizes = Array.from(new Set(stock.map(s => s.size)));
       const colorNames = Array.from(new Set(stock.map(s => s.color)));
-      const colors = colorNames.map(name => ({
-        name,
-        hex: colorHexMap[name.toLowerCase()] || '#000000'
-      }));
+      
+      const colors = colorNames.map(name => {
+        // SMART PARSING: If name is "Black (Color Logo)", it finds "black" in the hex map
+        const baseColorName = name.split('(')[0].trim().toLowerCase();
+        return {
+          name,
+          hex: colorHexMap[baseColorName] || '#000000'
+        };
+      });
 
       return {
         id: product.id,
