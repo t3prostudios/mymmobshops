@@ -6,22 +6,8 @@ service cloud.firestore {
      * VOGUEVERSE SECURITY RULES
      * 
      * CORE PHILOSOPHY:
-     * This ruleset enforces a strict user-ownership model for personal data and a role-based 
-     * access control (RBAC) model for administrative tasks. Access to private resources 
-     * is granted only to the authenticated owner.
-     * 
-     * DATA STRUCTURE:
-     * - User-specific data (Profiles, Addresses, Carts, Orders) is nested under /users/{userId}.
-     * - Public catalog data (Products, Brands, Categories) is at the top level for performance.
-     * - Administrative roles are verified via existence checks in the /roles_admin/ collection.
-     * 
-     * KEY DECISIONS:
-     * - DENORMALIZATION: userId is required on child documents (CartItems, OrderItems) to 
-     *   allow for fast, independent authorization without costly parent-document lookups.
-     * - STRUCTURAL SEGREGATION: Story submissions are kept private under the user's path 
-     *   until approved and copied to the public /featured_stories collection.
-     * - PROTOTYPING FLEXIBILITY: Rules enforce "Who" can access data, but do not enforce 
-     *   strict field types or schemas to allow for rapid frontend iteration.
+     * Enforces user-ownership for personal data and role-based access control (RBAC) 
+     * for administrative tasks (POS, Moderation).
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -44,97 +30,53 @@ service cloud.firestore {
 
     // --- USER PROFILE & PERSONAL DATA ---
 
-    /**
-     * @description Rules for individual user profile documents.
-     * @path /users/{userId}
-     * @allow (get, list, create, update) if user is owner.
-     * @deny (delete) always (profiles should be deactivated, not deleted).
-     * @principle Restricts profile management to the specific authenticated user.
-     */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if false;
+      allow update: if isExistingOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
 
-      /**
-       * @description Shipping and billing addresses for a specific user.
-       * @path /users/{userId}/addresses/{addressId}
-       * @allow (all) if user is owner.
-       * @deny (all) if userId does not match auth.uid.
-       * @principle Enforces path-based ownership for sub-collections.
-       */
       match /addresses/{addressId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
-      /**
-       * @description User shopping carts.
-       * @path /users/{userId}/carts/{cartId}
-       */
       match /carts/{cartId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
-
-        /**
-         * @description Items inside a user's cart.
-         * @path /users/{userId}/carts/{cartId}/items/{cartItemId}
-         * @principle Uses denormalized userId for fast owner verification.
-         */
+        allow read, write: if isOwner(userId) || isAdmin();
         match /items/{cartItemId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId); // userId is in the path
-          allow update: if isExistingOwner(userId);
-          allow delete: if isExistingOwner(userId);
+          allow read, write: if isOwner(userId) || isAdmin();
         }
       }
 
-      /**
-       * @description Completed customer orders.
-       * @path /users/{userId}/orders/{orderId}
-       */
-      match /orders/{orderId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && isAdmin(); // Only admins update order status
-        allow delete: if false; // Orders are immutable historical records
-
-        /**
-         * @description Items within a completed order.
-         * @path /users/{userId}/orders/{orderId}/items/{orderItemId}
-         */
-        match /items/{orderItemId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId);
-          allow update, delete: if false;
-        }
-      }
-
-      /**
-       * @description Private user story submissions awaiting moderation.
-       * @path /users/{userId}/story_submissions/{submissionId}
-       */
       match /story_submissions/{submissionId} {
-        allow get, list: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && resource.data.status == 'pending';
-        allow delete: if isExistingOwner(userId);
+        allow update: if (isExistingOwner(userId) && resource.data.status == 'pending') || isAdmin();
+        allow delete: if isExistingOwner(userId) || isAdmin();
       }
+    }
+
+    // --- ROOT COLLECTIONS (POS & Public Interaction) ---
+
+    match /orders/{orderId} {
+      allow create: if true; // Guests and Users can create orders
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /complaints/{complaintId} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // --- PUBLIC CATALOG & CONTENT (READ ONLY FOR PUBLIC) ---
 
-    /**
-     * @description Publicly readable catalog entities.
-     * @path /brands/{id}, /categories/{id}, /products/{id}, /announcements/{id}, /hero_slides/{id}, /social_posts/{id}, /discounts/{id}
-     * @allow (get, list) for everyone.
-     * @allow (write) for administrators only.
-     */
     match /brands/{brandId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -175,10 +117,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    /**
-     * @description Publicly visible featured stories (approved copies of user submissions).
-     * @path /featured_stories/{storyId}
-     */
     match /featured_stories/{storyId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -186,30 +124,15 @@ service cloud.firestore {
 
     // --- UTILITY & ADMINISTRATIVE COLLECTIONS ---
 
-    /**
-     * @description Newsletter subscribers.
-     * @path /subscribers/{subscriberId}
-     * @allow (create) for any visitor (to sign up).
-     * @allow (read, list) for administrators only (privacy protection).
-     */
     match /subscribers/{subscriberId} {
       allow create: if true;
-      allow get, list: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow read, list, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Database Access Control (DBAC) for administrative roles.
-     * @path /roles_admin/{userId}
-     * @allow (get) if user is checking their own admin status.
-     * @allow (write) if user is an existing admin.
-     * @principle Uses document existence as a source of truth for roles.
-     */
     match /roles_admin/{userId} {
       allow get: if isOwner(userId);
       allow list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
-
   }
 }

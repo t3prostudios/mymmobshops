@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,13 +22,11 @@ import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useState, useEffect } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, updateDoc, increment, collection, serverTimestamp, addDoc, setDoc } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, collection, serverTimestamp, addDoc, setDoc, increment } from 'firebase/firestore';
 import { sendOrderNotification } from '@/ai/flows/send-order-notification';
 import { sendCustomerOrderConfirmation } from '@/ai/flows/send-customer-order-confirmation';
-import { formatPrice } from '@/lib/utils';
 import { OrderNotificationInput } from '@/lib/schemas';
-import { getProducts } from '@/lib/products'; 
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Info } from 'lucide-react';
@@ -168,6 +164,7 @@ function CheckoutForm() {
       if (paymentIntent.status === 'succeeded') {
         
         const orderData = {
+          userId: (user && !values.guestCheckout) ? user.uid : null,
           customerName: `${values.firstName} ${values.lastName}`,
           customerEmail: values.email,
           deliveryMethod: values.deliveryMethod,
@@ -189,11 +186,11 @@ function CheckoutForm() {
           } : null,
         };
 
-        // Save order to Firestore
+        // Save order to root collection
         const ordersCollection = collection(firestore, 'orders');
         await addDoc(ordersCollection, orderData);
 
-        // Send order notification email to merchant and customer
+        // Send notifications
         try {
           const notificationPayload: OrderNotificationInput = {
             customerName: `${values.firstName} ${values.lastName}`,
@@ -242,7 +239,6 @@ function CheckoutForm() {
 
           if (Object.keys(updateData).length > 0) {
             try {
-              // Use setDoc with merge:true to create or update the document
               await setDoc(userDocRef, updateData, { merge: true });
             } catch (e) {
               console.error("Failed to update user address/loyalty info:", e);
@@ -252,12 +248,10 @@ function CheckoutForm() {
         
         toast({
           title: 'Order Placed!',
-          description:
-            'Thank you for your purchase. Your order is being processed.',
+          description: 'Thank you for your purchase. Your order is being processed.',
         });
 
         clearCart();
-
         router.push('/');
       }
     } catch (error) {
