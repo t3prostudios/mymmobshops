@@ -185,15 +185,24 @@ function AddToCartDialog({
     const [selectedColor, setSelectedColor] = useState<string>('');
     const [selectedSize, setSelectedSize] = useState<string>('');
 
-    const availableColors = useMemo(() => {
+    const allColors = useMemo(() => {
         if (!product) return [];
-        return Array.from(new Set(product.stock.filter(s => s.quantity > 0).map(s => s.color)));
+        // Show all unique color names defined in stock
+        return Array.from(new Set(product.stock.map(s => s.color)));
     }, [product]);
+
+    const getColorTotalStock = (color: string) => {
+        if (!product) return 0;
+        return product.stock
+            .filter(s => s.color === color)
+            .reduce((sum, s) => sum + s.quantity, 0);
+    };
 
     const availableSizes = useMemo(() => {
         if (!product || !selectedColor) return [];
+        // Show all sizes for the selected color, including those with 0 stock
         return product.stock
-            .filter(s => s.color === selectedColor && s.quantity > 0)
+            .filter(s => s.color === selectedColor)
             .map(s => ({ size: s.size, qty: s.quantity }));
     }, [product, selectedColor]);
 
@@ -215,31 +224,43 @@ function AddToCartDialog({
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label>Color</Label>
+                        <Label>Color / Logo Option</Label>
                         <Select value={selectedColor} onValueChange={(val) => { setSelectedColor(val); setSelectedSize(''); }}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select color" />
                             </SelectTrigger>
                             <SelectContent>
-                                {availableColors.map(c => (
-                                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                                ))}
+                                {allColors.map(c => {
+                                    const totalQty = getColorTotalStock(c);
+                                    const isOutOfStock = totalQty <= 0;
+                                    return (
+                                        <SelectItem key={c} value={c} disabled={isOutOfStock}>
+                                            {c} {isOutOfStock ? "(Out of Stock)" : `(${totalQty} total)`}
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                     </div>
                     {selectedColor && (
                         <div className="space-y-2">
-                            <Label>Size</Label>
+                            <Label>Size Availability</Label>
                             <div className="grid grid-cols-3 gap-2">
                                 {availableSizes.map(s => (
                                     <Button 
                                         key={s.size} 
                                         variant={selectedSize === s.size ? "default" : "outline"}
-                                        className="text-xs py-2 h-auto flex flex-col items-center justify-center gap-1"
+                                        className={cn(
+                                            "text-xs py-2 h-auto flex flex-col items-center justify-center gap-1",
+                                            s.qty <= 0 && "opacity-50 grayscale bg-muted border-dashed"
+                                        )}
                                         onClick={() => setSelectedSize(s.size)}
+                                        disabled={s.qty <= 0}
                                     >
                                         <span className="font-bold">{s.size}</span>
-                                        <span className="text-[10px] opacity-70 italic">{s.qty} in stock</span>
+                                        <span className={cn("text-[10px] italic", s.qty <= 0 ? "text-destructive" : "opacity-70")}>
+                                            {s.qty <= 0 ? "Sold Out" : `${s.qty} in stock`}
+                                        </span>
                                     </Button>
                                 ))}
                             </div>
