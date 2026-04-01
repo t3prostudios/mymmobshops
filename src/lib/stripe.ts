@@ -102,7 +102,11 @@ export async function getStripeProducts(): Promise<Product[]> {
       if (!priceObj) return null;
 
       const local = localProducts.find(p => p.id === product.id);
-      const defaultWeight = local?.weight || 8;
+      
+      // PRIORITIZE STRIPE METADATA FOR WEIGHT
+      // If you add a "weight" key in Stripe Metadata, it will use that over the hardcoded file.
+      const stripeWeight = product.metadata.weight ? parseFloat(product.metadata.weight) : null;
+      const defaultWeight = stripeWeight || local?.weight || 8;
       
       const stock = parseMetadataToStock(product.metadata, defaultWeight, local?.sizeWeights);
       
@@ -133,7 +137,8 @@ export async function getStripeProducts(): Promise<Product[]> {
         sizeWeights: local?.sizeWeights,
         features: local?.features || [],
         rating: local?.rating || 5,
-        reviewCount: local?.reviewCount || 0
+        reviewCount: local?.reviewCount || 0,
+        isNew: product.created > (Date.now() / 1000) - (30 * 24 * 60 * 60) // Marked as new if created in last 30 days
       } as Product;
     }).filter((p): p is Product => p !== null);
 

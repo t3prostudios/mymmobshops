@@ -1153,6 +1153,7 @@ export default function PosPage() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentTab, setCurrentTab] = useState("pos");
   const isMobile = useIsMobile();
@@ -1321,16 +1322,24 @@ export default function PosPage() {
     }
   };
 
-  async function loadProducts() {
+  async function loadProducts(silent = false) {
+    if (!silent) setIsSyncing(true);
     setIsLoadingProducts(true);
-    const fetchedProducts = await fetchProductsAction();
-    setProducts(fetchedProducts);
-    setIsLoadingProducts(false);
+    try {
+      const fetchedProducts = await fetchProductsAction();
+      setProducts(fetchedProducts);
+      if (!silent) toast({ title: "Sync Complete", description: "Product catalog updated from Stripe." });
+    } catch (e) {
+      if (!silent) toast({ variant: "destructive", title: "Sync Failed", description: "Could not fetch latest products." });
+    } finally {
+      setIsLoadingProducts(false);
+      setIsSyncing(false);
+    }
   }
 
   useEffect(() => {
     if (user) {
-      loadProducts();
+      loadProducts(true);
     }
   }, [user]);
 
@@ -1484,7 +1493,7 @@ export default function PosPage() {
         
         toast({ title: "Payment Successful", description: `Total: ${formatPrice(total)}` });
         setCart([]);
-        loadProducts(); 
+        loadProducts(true); 
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Payment Failed', description: e.message });
@@ -1526,7 +1535,7 @@ export default function PosPage() {
   }
 
 
-  if (pageIsLoading) {
+  if (pageIsLoading && !isSyncing) {
     return (
         <div className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 lg:p-8">
             <div className="flex justify-between items-center mb-6">
@@ -1555,8 +1564,8 @@ export default function PosPage() {
           <header className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl lg:text-3xl font-bold">In-Store Point of Sale</h1>
-              <Button size="sm" variant="outline" onClick={loadProducts} title="Sync with Stripe Dashboard">
-                <RefreshCw className="h-4 w-4 mr-2" /> Sync Stripe
+              <Button size="sm" variant="outline" onClick={() => loadProducts()} disabled={isSyncing} className={cn(isSyncing && "animate-pulse")}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} /> {isSyncing ? "Syncing..." : "Sync Stripe"}
               </Button>
             </div>
             <div className="flex items-center gap-4 text-sm">
@@ -1781,7 +1790,7 @@ export default function PosPage() {
             product={managingProduct} 
             isOpen={!!managingProduct} 
             onOpenChange={(open) => !open && setManagingProduct(null)}
-            onUpdate={loadProducts}
+            onUpdate={() => loadProducts(true)}
           />
       )}
 
