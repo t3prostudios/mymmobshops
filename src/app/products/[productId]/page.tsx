@@ -5,13 +5,16 @@ import { useState, useEffect, Suspense, useRef, use } from "react";
 import { fetchProductByIdAction } from "@/lib/actions";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Star, MessageCircle } from "lucide-react";
+import { Star, MessageCircle, Loader2 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
-import { cn } from "@/lib/utils";
 import type { Product, Stock } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useUser, useFirestore } from "@/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 function ProductPageSkeleton() {
   return (
@@ -81,6 +84,9 @@ export default function ProductPage({ params }: { params: Promise<{ productId: s
 
 function ProductDetail({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
   const [isHovered, setIsHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -101,6 +107,8 @@ function ProductDetail({ product }: { product: Product }) {
 
   const [selectedSize, setSelectedSize] = useState<string | undefined>(getInitialSize);
   const [userRating, setUserRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     setSelectedSize(getInitialSize());
@@ -120,10 +128,6 @@ function ProductDetail({ product }: { product: Product }) {
     }
   }, [isHovered, product.hoverVideo]);
 
-  if (!product) {
-    return null;
-  }
-
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
   }
@@ -134,6 +138,55 @@ function ProductDetail({ product }: { product: Product }) {
         addToCart(product, undefined, stockItem);
     } else {
         addToCart(product);
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    if (userRating === 0) {
+      toast({
+        title: "Rating required",
+        description: "Please select a star rating before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      toast({
+        title: "Comment required",
+        description: "Please share your thoughts in the comment section.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const reviewsRef = collection(firestore, "reviews");
+      await addDoc(reviewsRef, {
+        productId: product.id,
+        productName: product.name,
+        rating: userRating,
+        comment: reviewComment,
+        authorName: user?.displayName || user?.email?.split('@')[0] || "Guest",
+        createdAt: serverTimestamp(),
+      });
+
+      toast({
+        title: "Review submitted!",
+        description: "Thank you for your feedback.",
+      });
+      setReviewComment("");
+      setUserRating(0);
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      toast({
+        title: "Submission failed",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -222,13 +275,13 @@ function ProductDetail({ product }: { product: Product }) {
                   key={color.name}
                   title={color.name}
                   className={cn(
-                    "flex flex-col w-20 h-14 rounded-md border-2 overflow-hidden transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
+                    "flex flex-col w-24 h-16 rounded-md border-2 overflow-hidden transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
                     selectedColor === color.name ? "border-primary" : "border-gray-200"
                   )}
                   onClick={() => handleColorSelect(color.name)}
                 >
                   <div className="flex-1 w-full" style={{ backgroundColor: color.hex }} />
-                  <div className="h-6 w-full bg-background flex items-center justify-center text-[8px] font-bold uppercase tracking-tighter leading-none px-1 text-center">
+                  <div className="h-7 w-full bg-background flex items-center justify-center text-[9px] font-bold uppercase tracking-tighter leading-none px-1 text-center border-t">
                     {color.logoType}
                   </div>
                 </button>
@@ -265,26 +318,54 @@ function ProductDetail({ product }: { product: Product }) {
             </div>
           )}
 
-          <div className="border-t pt-6">
+          <div className="border-t pt-6 space-y-4">
             <h3 className="text-lg font-semibold">Write a review</h3>
-            <div className="flex items-center mt-2">
-              <div className="flex items-center space-x-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      "h-7 w-7 cursor-pointer transition-colors",
-                      i < userRating ? "text-yellow-400 fill-current" : "text-gray-300 hover:text-yellow-300"
-                    )}
-                    onClick={() => setUserRating(i + 1)}
-                  />
-                ))}
-              </div>
-              <Button variant="outline" className="ml-auto">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Submit Review
-              </Button>
+            <div className="flex items-center space-x-1">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={cn(
+                    "h-7 w-7 cursor-pointer transition-colors",
+                    i < userRating ? "text-yellow-400 fill-current" : "text-gray-300 hover:text-yellow-300"
+                  )}
+                  onClick={() => setUserRating(i + 1)}
+                />
+              ))}
+              <span className="ml-2 text-sm text-muted-foreground">
+                {userRating > 0 ? `${userRating} stars` : "Select a rating"}
+              </span>
             </div>
+            
+            <Textarea 
+              placeholder="What did you think of this item? Your feedback helps the community!"
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              className="min-h-[100px]"
+            />
+
+            <Button 
+              className="w-full sm:w-auto" 
+              onClick={handleReviewSubmit}
+              disabled={isSubmittingReview}
+            >
+              {isSubmittingReview ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Submit Review
+                </>
+              )}
+            </Button>
+            
+            {!user && (
+              <p className="text-xs text-muted-foreground text-center sm:text-left italic">
+                Note: You are posting as a guest. <Link href="/login" className="underline text-primary">Login</Link> to use your profile name.
+              </p>
+            )}
           </div>
         </div>
       </div>
