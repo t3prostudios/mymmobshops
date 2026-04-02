@@ -14,6 +14,8 @@ const getStripeClient = () => {
 const colorHexMap: { [key: string]: string } = {
     'grey': '#808080',
     'gray': '#808080',
+    'carbon grey': '#333333',
+    'carbon gray': '#333333',
     'baby blue': '#ADD8E6',
     'red': '#FF0000',
     'black': '#000000',
@@ -31,9 +33,12 @@ const colorHexMap: { [key: string]: string } = {
     'light wash': '#a5d8ff',
     'ivory': '#fffff0',
     'olive green': '#556b2f',
+    'army green': '#4B5320',
+    'forest green': '#228B22',
     'green': '#008000',
-    'charcoal': '#36454F',
+    'light pink': '#FFB6C1',
     'pink': '#FFC0CB',
+    'charcoal': '#36454F',
     'natural': '#F5F5DC',
     'brown': '#8B4513'
 };
