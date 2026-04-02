@@ -35,7 +35,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Classic mesh-back trucker hat.',
     weight: 2.3,
     sizeWeights: { 'One Size': 2.3 },
-    category: 'accessories',
+    category: 'hats',
     style: 'hats',
     features: ['Adjustable snapback', 'Breathable mesh'],
     colors: [], sizes: [], images: []
@@ -68,7 +68,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Limited edition patch hoodie.',
     weight: 28,
     sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
-    category: 'outerwear',
+    category: 'tops',
     style: 'hoodies',
     features: ['Hand-sewn patches', 'Heavyweight fleece'],
     colors: [], sizes: [], images: []
@@ -79,7 +79,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Premium wool and leather jacket.',
     weight: 45,
     sizeWeights: { 'S': 40, 'M': 45, 'L': 50, 'XL': 55, '2XL': 60 },
-    category: 'outerwear',
+    category: 'tops',
     style: 'jackets',
     features: ['Wool body', 'Quilted lining'],
     colors: [], sizes: [], images: []
@@ -120,7 +120,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Original MMOB design on a soft fleece hoodie.',
     weight: 26,
     sizeWeights: { 'S': 22, 'M': 24, 'L': 26, 'XL': 28, '2XL': 30 },
-    category: 'outerwear',
+    category: 'tops',
     style: 'hoodies',
     colors: [], sizes: [], images: []
   },
@@ -140,7 +140,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Cozy knit beanie with embroidered logo.',
     weight: 3,
     sizeWeights: { 'One Size': 3 },
-    category: 'accessories',
+    category: 'hats',
     style: 'hats',
     colors: [], sizes: [], images: []
   },
@@ -150,7 +150,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     description: 'Classic heavy-duty zip hoodie.',
     weight: 28,
     sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
-    category: 'outerwear',
+    category: 'tops',
     style: 'hoodies',
     colors: [], sizes: [], images: []
   },
@@ -184,9 +184,7 @@ export function getCategories(): Category[] {
     { id: 'bottoms', name: 'Bottoms' },
     { id: 'hats', name: 'Hats' },
     { id: 'bundles', name: 'Bundles' },
-    { id: 'men', name: 'Men' },
-    { id: 'adults', name: 'Adults' },
     { id: 'kids', name: 'Kids' },
-    { id: 'new-arrivals', name: 'New Arrivals' },
+    { id: 'accessories', name: 'Accessories' },
   ];
 }

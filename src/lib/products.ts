@@ -7,16 +7,19 @@ let categories: Category[] = [
   { id: 'bottoms', name: 'Bottoms' },
   { id: 'hats', name: 'Hats' },
   { id: 'bundles', name: 'Bundles' },
-  { id: 'men', name: 'Men' },
-  { id: 'adults', name: 'Adults' },
-  { id: 'new-arrivals', name: 'New Arrivals' },
+  { id: 'kids', name: 'Kids' },
+  { id: 'accessories', name: 'Accessories' },
 ];
 
 export async function getProducts(options?: { limit?: number, category?: string, sort?: 'best-selling' | 'newest' }): Promise<Product[]> {
   let products = await getStripeProducts();
 
   if (options?.category) {
-    products = products.filter(p => p.category === options.category);
+    // Check if it's a valid data category before filtering
+    const validCategoryIds = categories.map(c => c.id);
+    if (validCategoryIds.includes(options.category)) {
+      products = products.filter(p => p.category === options.category);
+    }
   }
 
   if (options?.sort === 'best-selling') {
@@ -79,10 +82,13 @@ export async function getFilterOptions(): Promise<{
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : 300;
   
+  // Use unique categories present in actual data for the "styles" filter
+  const uniqueCategories = [...new Set(products.map(p => p.category))];
+
   return {
     sizes: [...new Set(products.flatMap(p => p.sizes))],
     colors: [...new Set(products.flatMap(p => p.colors.map(c => c.name)))],
-    styles: [...new Set(products.map(p => p.category))],
+    styles: uniqueCategories,
     priceRange: [Math.floor(minPrice), Math.ceil(maxPrice)],
   };
 }
