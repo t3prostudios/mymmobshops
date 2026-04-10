@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { getStripeProducts } from '@/lib/stripe';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import type { Image as ImageType } from '@/types';
 
 export default async function MovementPage() {

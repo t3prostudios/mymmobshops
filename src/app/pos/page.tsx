@@ -10,7 +10,7 @@ import { fetchProductsAction } from "@/lib/actions";
 import { formatPrice, cn } from "@/lib/utils";
 import type { Product, Order, UserAccount, Complaint, Review, Stock } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShoppingCart, CreditCard, Wifi, WifiOff, LogIn, Bell, Archive, Send, Search, Users, Pencil, MessageSquareWarning, Star as StarIcon, Trash2, Mail, PlusCircle, Settings2, Weight, RefreshCw, XCircle } from 'lucide-react';
+import { ShoppingCart, CreditCard, Wifi, WifiOff, LogIn, Bell, Archive, Send, Search, Users, Pencil, MessageSquareAlert, Star as StarIcon, Trash2, Mail, PlusCircle, Settings2, Weight, RefreshCw, XCircle } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -187,7 +187,6 @@ function AddToCartDialog({
 
     const allColors = useMemo(() => {
         if (!product) return [];
-        // Show all unique color names defined in stock
         return Array.from(new Set(product.stock.map(s => s.color)));
     }, [product]);
 
@@ -200,7 +199,6 @@ function AddToCartDialog({
 
     const availableSizes = useMemo(() => {
         if (!product || !selectedColor) return [];
-        // Show all sizes for the selected color, including those with 0 stock
         return product.stock
             .filter(s => s.color === selectedColor)
             .map(s => ({ 
@@ -305,8 +303,8 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
         const sorted = orders?.filter(o => o.status === 'fulfilled') || [];
         if (!fulfilledOrderSearch) return sorted;
         return sorted.filter(order =>
-          order.customerName.toLowerCase().includes(fulfilledOrderSearch.toLowerCase()) ||
-          order.customerEmail.toLowerCase().includes(fulfilledOrderSearch.toLowerCase())
+          (order.customerName?.toLowerCase().includes(fulfilledOrderSearch.toLowerCase()) || 
+           order.customerEmail?.toLowerCase().includes(fulfilledOrderSearch.toLowerCase()))
         );
     }, [orders, fulfilledOrderSearch]);
 
@@ -331,7 +329,7 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                         </div>
                         <div className="text-right">
                             <p className="font-bold text-lg">{formatPrice(order.total)}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(order.createdAt.seconds * 1000).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
                         </div>
                         </div>
                         <ul className="text-sm mt-2 space-y-1">
@@ -370,7 +368,7 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                         <div>
                             <p className="font-semibold">{order.customerName}</p>
                             <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{new Date(order.createdAt.seconds * 1000).toLocaleDateString()}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
                         </div>
                         <p className="font-medium">{formatPrice(order.total)}</p>
                         </div>
@@ -709,7 +707,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
     
     complaints.forEach(c => {
-        if (c.status === 'resolved' && c.resolvedAt) {
+        if (c.status === 'resolved' && c.resolvedAt?.seconds) {
             const resolvedTime = new Date(c.resolvedAt.seconds * 1000);
             if (resolvedTime < twelveHoursAgo) {
                 const docRef = doc(firestore, 'complaints', c.id);
@@ -738,7 +736,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
             name: complaint.name,
             email: complaint.email,
             issue: complaint.issue,
-            createdAt: new Date(complaint.createdAt.seconds * 1000).toLocaleString(),
+            createdAt: complaint.createdAt?.seconds ? new Date(complaint.createdAt.seconds * 1000).toLocaleString() : 'N/A',
         });
 
         if (result.error) {
@@ -793,7 +791,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><MessageSquareWarning className="h-5 w-5" />Customer Complaints</h2>
+      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><MessageSquareAlert className="h-5 w-5" />Customer Complaints</h2>
       <ScrollArea className="h-[calc(100vh-250px)]">
         <div className="space-y-3 pr-4">
           {complaints && complaints.length > 0 ? (
@@ -802,7 +800,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-semibold">{complaint.name} <span className="text-sm text-muted-foreground">- {complaint.email}</span></p>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(complaint.createdAt.seconds * 1000).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{complaint.createdAt?.seconds ? new Date(complaint.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComplaintToDelete(complaint)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -904,7 +902,7 @@ function ReviewsTab({ reviews, isLoading }: { reviews: Review[] | null, isLoadin
                   </div>
                 </div>
                 <p className="text-sm mt-3 italic">"{review.comment}"</p>
-                 <p className="text-xs text-muted-foreground mt-2 text-right">{new Date(review.createdAt.seconds * 1000).toLocaleDateString()}</p>
+                 <p className="text-xs text-muted-foreground mt-2 text-right">{review.createdAt?.seconds ? new Date(review.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
               </div>
             ))
           ) : (
@@ -1216,8 +1214,8 @@ export default function PosPage() {
       if (!reviews || !twentyFourHoursAgo) return 0;
       return reviews.filter(review => {
           try {
-              const reviewDate = new Date(review.createdAt.seconds * 1000);
-              return reviewDate > twentyFourHoursAgo;
+              const reviewDate = review.createdAt?.seconds ? new Date(review.createdAt.seconds * 1000) : null;
+              return reviewDate && reviewDate > twentyFourHoursAgo;
           } catch(e) {
               return false;
           }
@@ -1229,7 +1227,7 @@ export default function PosPage() {
     { value: 'notifications', label: 'Notifications', count: newOrdersCount, icon: Bell },
     { value: 'shipping', label: 'Shipping', count: 0, icon: Send },
     { value: 'accounts', label: 'Accounts', count: newAccountsCount, icon: Users },
-    { value: 'complaints', label: 'Complaints', count: newComplaintsCount, icon: MessageSquareWarning },
+    { value: 'complaints', label: 'Complaints', count: newComplaintsCount, icon: MessageSquareAlert },
     { value: 'reviews', label: 'Reviews', count: newReviewsCount, icon: StarIcon },
   ];
 
