@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import type { Image as ImageType } from '@/types';
 
 export default async function SocialProof() {
