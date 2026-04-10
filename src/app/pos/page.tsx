@@ -203,7 +203,11 @@ function AddToCartDialog({
         // Show all sizes for the selected color, including those with 0 stock
         return product.stock
             .filter(s => s.color === selectedColor)
-            .map(s => ({ size: s.size, qty: s.quantity }));
+            .map(s => ({ 
+                size: s.size, 
+                qty: s.quantity, 
+                weight: s.weight || product.weight 
+            }));
     }, [product, selectedColor]);
 
     useEffect(() => {
@@ -244,21 +248,22 @@ function AddToCartDialog({
                     </div>
                     {selectedColor && (
                         <div className="space-y-2">
-                            <Label>Size Availability</Label>
+                            <Label>Size Availability & Weights</Label>
                             <div className="grid grid-cols-3 gap-2">
                                 {availableSizes.map(s => (
                                     <Button 
                                         key={s.size} 
                                         variant={selectedSize === s.size ? "default" : "outline"}
                                         className={cn(
-                                            "text-xs py-2 h-auto flex flex-col items-center justify-center gap-1",
+                                            "text-xs py-3 h-auto flex flex-col items-center justify-center gap-1",
                                             s.qty <= 0 && "opacity-50 grayscale bg-muted border-dashed"
                                         )}
                                         onClick={() => setSelectedSize(s.size)}
                                         disabled={s.qty <= 0}
                                     >
                                         <span className="font-bold">{s.size}</span>
-                                        <span className={cn("text-[10px] italic", s.qty <= 0 ? "text-destructive" : "opacity-70")}>
+                                        <span className="text-[10px] font-medium text-primary/80">{s.weight} oz</span>
+                                        <span className={cn("text-[9px] italic", s.qty <= 0 ? "text-destructive" : "opacity-70")}>
                                             {s.qty <= 0 ? "Sold Out" : `${s.qty} in stock`}
                                         </span>
                                     </Button>
@@ -508,9 +513,9 @@ function SendEmailDialog({ user, isOpen, onOpenChange }: { user: UserAccount | n
     if (!user) return;
     setIsSending(true);
     const formData = new FormData();
-    formData.append('customerEmail', user.email);
-    formData.append('subject', values.subject);
-    formData.append('message', values.message);
+    formData.append("customerEmail", user.email);
+    formData.append("subject", values.subject);
+    formData.append("message", values.message);
     
     const result = await handleSendPosEmail(formData);
     
@@ -1623,8 +1628,11 @@ export default function PosPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
                       {products.map((product) => {
                         const totalStock = product.stock.reduce((sum, item) => sum + item.quantity, 0);
-                        const avgWeight = product.stock.length > 0 ? (product.stock.reduce((sum, item) => sum + (item.weight || 0), 0) / product.stock.length).toFixed(1) : product.weight.toFixed(1);
                         const isOutOfStock = totalStock <= 0;
+                        const weights = Array.from(new Set(product.stock.map(s => s.weight || product.weight)));
+                        const weightDisplay = weights.length > 1 
+                            ? `${Math.min(...weights)}-${Math.max(...weights)}` 
+                            : weights[0]?.toFixed(1) || product.weight.toFixed(1);
 
                         return (
                           <div key={product.id} className="rounded-lg border bg-gray-50 dark:bg-gray-700 p-3 flex flex-col justify-between transition-shadow hover:shadow-md relative group">
@@ -1644,7 +1652,7 @@ export default function PosPage() {
                                   </span>
                                   </p>
                                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                      <Weight className="h-3 w-3" /> {avgWeight} oz
+                                      <Weight className="h-3 w-3" /> {weightDisplay} oz
                                   </p>
                               </div>
                             </div>

@@ -1,3 +1,4 @@
+
 import Stripe from 'stripe';
 import { allProducts as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
@@ -44,6 +45,19 @@ const colorHexMap: { [key: string]: string } = {
 };
 
 /**
+ * Normalizes size strings for better matching between Stripe and local data.
+ * E.g., converts "3XL" to "3X" if that's what's in data.ts.
+ */
+function normalizeSize(s: string): string {
+  const upper = s.trim().toUpperCase();
+  // If it's a number followed by XL (e.g. 3XL), normalize to 3X
+  if (/^\d+XL$/.test(upper)) {
+    return upper.replace('XL', 'X');
+  }
+  return upper;
+}
+
+/**
  * STRICT PARSER: Only reads the Compact Metadata Format.
  * Format: ColorKey -> "Size:Qty-Size:Qty"
  */
@@ -70,8 +84,8 @@ function parseMetadataToStock(metadata: Record<string, string>, defaultWeight: n
           if (!isNaN(quantity)) {
             let weight = defaultWeight;
             if (sizeWeights) {
-                const normalizedSize = size.toUpperCase();
-                const weightKey = Object.keys(sizeWeights).find(k => k.toUpperCase() === normalizedSize);
+                const searchSize = normalizeSize(size);
+                const weightKey = Object.keys(sizeWeights).find(k => normalizeSize(k) === searchSize);
                 weight = weightKey ? sizeWeights[weightKey] : defaultWeight;
             }
 
@@ -123,16 +137,12 @@ export async function getStripeProducts(): Promise<Product[]> {
       const colorNames = Array.from(new Set(stock.map(s => s.color)));
       
       const colors = colorNames.map(name => {
-        // Any name containing "B&W Logo" gets the B&W label
-        // Anything else gets "Color Logo"
         const isBW = name.toLowerCase().includes('b&w logo');
         const logoType = isBW ? 'B&W Logo' : 'Color Logo';
-        
-        // Match the hex code using just the color part (e.g. "Black" from "Black (B&W Logo)")
         const baseColorName = name.split('(')[0].trim().toLowerCase();
         
         return {
-          name, // Full identifier for Stripe
+          name,
           hex: colorHexMap[baseColorName] || '#000000',
           logoType
         };
