@@ -10,7 +10,7 @@ import { fetchProductsAction } from "@/lib/actions";
 import { formatPrice, cn } from "@/lib/utils";
 import type { Product, Order, UserAccount, Complaint, Review, Stock } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShoppingCart, CreditCard, Wifi, WifiOff, LogIn, Bell, Archive, Send, Search, Users, Pencil, MessageSquareAlert, Star as StarIcon, Trash2, Mail, PlusCircle, Settings2, Weight, RefreshCw, XCircle } from 'lucide-react';
+import { ShoppingCart, CreditCard, Wifi, WifiOff, LogIn, Bell, Archive, Send, Search, Users, Pencil, MessageSquare, Star as StarIcon, Trash2, Mail, PlusCircle, Settings2, Weight, RefreshCw, XCircle } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -646,7 +646,7 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
                                             {user.address}, {user.city}, {user.state} {user.postalCode}, {user.country}
                                         </p>
                                     )}
-                                    <p className="text-xs text-muted-foreground mt-1">Joined: {new Date(user.registrationDate).toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Joined: {user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'N/A'}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <div className="text-right">
@@ -791,7 +791,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><MessageSquareAlert className="h-5 w-5" />Customer Complaints</h2>
+      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><MessageSquare className="h-5 w-5" />Customer Complaints</h2>
       <ScrollArea className="h-[calc(100vh-250px)]">
         <div className="space-y-3 pr-4">
           {complaints && complaints.length > 0 ? (
@@ -867,7 +867,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setComplaintToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={setComplaintToDelete.bind(null, null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDeleteComplaint} className={buttonVariants({ variant: "destructive" })}>Delete</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -1200,6 +1200,7 @@ export default function PosPage() {
     if (!users || !twentyFourHoursAgo) return 0;
     return users.filter(user => {
       try {
+        if (!user.registrationDate) return false;
         const regDate = new Date(user.registrationDate);
         return regDate > twentyFourHoursAgo;
       } catch (e) {
@@ -1227,7 +1228,7 @@ export default function PosPage() {
     { value: 'notifications', label: 'Notifications', count: newOrdersCount, icon: Bell },
     { value: 'shipping', label: 'Shipping', count: 0, icon: Send },
     { value: 'accounts', label: 'Accounts', count: newAccountsCount, icon: Users },
-    { value: 'complaints', label: 'Complaints', count: newComplaintsCount, icon: MessageSquareAlert },
+    { value: 'complaints', label: 'Complaints', count: newComplaintsCount, icon: MessageSquare },
     { value: 'reviews', label: 'Reviews', count: newReviewsCount, icon: StarIcon },
   ];
 
@@ -1630,7 +1631,7 @@ export default function PosPage() {
                         const weights = Array.from(new Set(product.stock.map(s => s.weight || product.weight)));
                         const weightDisplay = weights.length > 1 
                             ? `${Math.min(...weights)}-${Math.max(...weights)}` 
-                            : weights[0]?.toFixed(1) || product.weight.toFixed(1);
+                            : weights[0]?.toFixed(1) || (product.weight ? product.weight.toFixed(1) : '0.0');
 
                         return (
                           <div key={product.id} className="rounded-lg border bg-gray-50 dark:bg-gray-700 p-3 flex flex-col justify-between transition-shadow hover:shadow-md relative group">
