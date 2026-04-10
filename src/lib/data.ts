@@ -8,9 +8,9 @@ import type { Product, Category } from '@/types';
  */
 const products: Omit<Product, 'price' | 'stock'>[] = [
   {
-    id: 'prod_RntFrszv6v06UK',
-    name: 'Crew Neck T-shirt',
-    description: 'Our signature heavy-weight cotton t-shirt.',
+    id: 'prod_RntFrszv6v06UK', // Verify if this is Adult Tee
+    name: "Adult Tee's",
+    description: 'Signature heavy-weight cotton t-shirt built for comfort and style.',
     weight: 8,
     sizeWeights: { 'S': 7.2, 'M': 8, 'L': 8.8, 'XL': 9.5, '2XL': 10.2, '3XL': 11 },
     category: 'tops',
@@ -19,9 +19,31 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
+    id: 'prod_TlMHAxdwfVs5Td', // Verify if this is Adult Hoodie
+    name: "Adult Hoodie's",
+    description: 'Premium fleece hoodie featuring our signature logo.',
+    weight: 26,
+    sizeWeights: { 'S': 22, 'M': 24, 'L': 26, 'XL': 28, '2XL': 30 },
+    category: 'tops',
+    style: 'hoodies',
+    features: ['Heavyweight fleece', 'Kangaroo pocket', 'Ribbed cuffs'],
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_TlO33CirJ52rIb', // Verify if this is Adult Jogger
+    name: "Adult Jogger's",
+    description: 'Matching joggers for the perfect set or individual wear.',
+    weight: 18,
+    sizeWeights: { 'S': 16, 'M': 18, 'L': 20, 'XL': 22, '2XL': 24 },
+    category: 'bottoms',
+    style: 'pants',
+    features: ['Premium cotton blend', 'Elastic waistband', 'Deep pockets'],
+    colors: [], sizes: [], images: []
+  },
+  {
     id: 'prod_UIdJEjUUbpBMdS',
-    name: 'Original Logo Tank- Men',
-    description: 'Built for comfort, style, and everyday wear. Featuring the signature MMOB logo, this tank represents confidence and intentional living.',
+    name: "Men's Tank",
+    description: 'Built for confidence and intentional living.',
     weight: 6.6,
     sizeWeights: { 'S': 4.2, 'M': 4.7, 'L': 5.4, 'XL': 5.6, '2XL': 6.3, '3XL': 6.6 },
     category: 'tops',
@@ -30,19 +52,28 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO9hSyBakBOFx',
-    name: 'Kids Jogger Set',
-    description: 'Matching hoodie and joggers for the youth.',
-    weight: 24,
-    sizeWeights: { '2T': 18, '3T': 20, '4T': 22, '5T': 24, '6T': 26 },
-    category: 'kids',
-    style: 'sets',
-    features: ['Soft fleece lining', 'Elastic waistband', 'Reinforced knees'],
+    id: 'prod_REPLACE_ME_women_racerback', 
+    name: "Women's Racer Backs",
+    description: 'Flattering athletic fit racerback for daily inspiration.',
+    weight: 5,
+    sizeWeights: { 'XS': 4, 'S': 4.5, 'M': 5, 'L': 5.5, 'XL': 6 },
+    category: 'tops',
+    style: 'tops',
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_TlOJWnyFyQMC55',
+    name: 'Zip-Up Hoodie',
+    description: 'Classic heavy-duty zip hoodie for easy layering.',
+    weight: 28,
+    sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
+    category: 'tops',
+    style: 'hoodies',
     colors: [], sizes: [], images: []
   },
   {
     id: 'prod_Tm0HnmbMNAV5Ab',
-    name: 'Trucker Hats',
+    name: 'Trucker Hat',
     description: 'Classic mesh-back trucker hat.',
     weight: 2.3,
     sizeWeights: { 'One Size': 2.3 },
@@ -52,57 +83,13 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO6VP6AOEeNLG',
-    name: 'Graphic T-Shirt',
-    description: 'Original MMOB graphic design.',
-    weight: 7,
-    sizeWeights: { 'S': 6, 'M': 7, 'L': 8, 'XL': 9, '2XL': 10 },
-    category: 'tops',
-    style: 'tops',
-    features: ['Premium screen print', 'Soft-touch fabric'],
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_TlODI3lTFhwfQ6',
-    name: 'Polo Shirt',
-    description: 'Embroidered signature polo.',
-    weight: 10,
-    sizeWeights: { 'S': 9, 'M': 10, 'L': 11, 'XL': 12, '2XL': 13 },
-    category: 'tops',
-    style: 'shirts',
-    features: ['Pique knit cotton', 'Classic fit'],
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_TlOIBgsfsOT6Ac',
-    name: 'Chanel Patch Hoodie',
-    description: 'Limited edition patch hoodie.',
-    weight: 28,
-    sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
-    category: 'tops',
-    style: 'hoodies',
-    features: ['Hand-sewn patches', 'Heavyweight fleece'],
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_QJkM5qQWqY6LgS',
-    name: 'Varsity Jacket',
-    description: 'Premium wool and leather jacket.',
-    weight: 45,
-    sizeWeights: { 'S': 40, 'M': 45, 'L': 50, 'XL': 55, '2XL': 60 },
-    category: 'tops',
-    style: 'jackets',
-    features: ['Wool body', 'Quilted lining'],
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_Tm0QG8bzkkDlr4',
-    name: 'Womens V-Neck',
-    description: 'Flattering contoured fit V-neck.',
-    weight: 6,
-    sizeWeights: { 'XS': 5, 'S': 5.5, 'M': 6, 'L': 6.5, 'XL': 7 },
-    category: 'tops',
-    style: 'tops',
+    id: 'prod_Tldd3U12TBS9Dj',
+    name: 'Beanie',
+    description: 'Cozy knit beanie with embroidered logo.',
+    weight: 3,
+    sizeWeights: { 'One Size': 3 },
+    category: 'hats',
+    style: 'hats',
     colors: [], sizes: [], images: []
   },
   {
@@ -116,73 +103,53 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO33CirJ52rIb',
-    name: 'Adult joggers',
-    description: 'Premium heavyweight joggers.',
-    weight: 18,
-    sizeWeights: { 'S': 16, 'M': 18, 'L': 20, 'XL': 22, '2XL': 24 },
-    category: 'bottoms',
+    id: 'prod_REPLACE_ME_child_tee',
+    name: "Children's Tee's",
+    description: 'Durable and soft tees for the youth.',
+    weight: 5,
+    sizeWeights: { '2T': 4, '3T': 4.5, '4T': 5, '5T': 5.5, '6T': 6 },
+    category: 'kids',
+    style: 'tops',
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_REPLACE_ME_child_hoodie',
+    name: "Children's Hoodies",
+    description: 'Warm and cozy hoodies for kids.',
+    weight: 14,
+    sizeWeights: { '2T': 10, '3T': 12, '4T': 14, '5T': 16, '6T': 18 },
+    category: 'kids',
+    style: 'hoodies',
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_REPLACE_ME_child_jogger',
+    name: "Children's Joggers",
+    description: 'Comfortable joggers built for play.',
+    weight: 10,
+    sizeWeights: { '2T': 8, '3T': 9, '4T': 10, '5T': 11, '6T': 12 },
+    category: 'kids',
     style: 'pants',
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlMHAxdwfVs5Td',
-    name: 'Graphic hoodie',
-    description: 'Original MMOB design on a soft fleece hoodie.',
-    weight: 26,
-    sizeWeights: { 'S': 22, 'M': 24, 'L': 26, 'XL': 28, '2XL': 30 },
-    category: 'tops',
-    style: 'hoodies',
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_Tm0oaOc4TsZFrM',
-    name: 'kids signature combo',
-    description: 'The ultimate set for the youth.',
-    weight: 20,
-    sizeWeights: { '2T': 16, '3T': 18, '4T': 20, '5T': 22 },
-    category: 'kids',
-    style: 'sets',
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_Tldd3U12TBS9Dj',
-    name: 'beanie',
-    description: 'Cozy knit beanie with embroidered logo.',
-    weight: 3,
-    sizeWeights: { 'One Size': 3 },
-    category: 'hats',
-    style: 'hats',
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_TlOJWnyFyQMC55',
-    name: 'zip up hoodie',
-    description: 'Classic heavy-duty zip hoodie.',
-    weight: 28,
-    sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
-    category: 'tops',
-    style: 'hoodies',
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_TlOIBgsfsOT6Ac_set',
-    name: 'jogger set',
-    description: 'Matching hoodie and jogger bundle.',
-    weight: 48,
-    sizeWeights: { 'S': 42, 'M': 45, 'L': 48, 'XL': 52, '2XL': 56 },
-    category: 'bundles',
-    style: 'sets',
-    colors: [], sizes: [], images: []
-  },
-  {
-    id: 'prod_TlOGmzr8l5CY3c',
-    name: 'mmob belt',
-    description: 'Signature designer belt.',
-    weight: 6,
-    sizeWeights: { 'One Size': 6 },
+    id: 'prod_REPLACE_ME_woven_patch_orig',
+    name: 'Woven Patch Original',
+    description: 'Signature original logo woven patch.',
+    weight: 0.5,
+    sizeWeights: { 'One Size': 0.5 },
     category: 'accessories',
-    style: 'belts',
+    style: 'patches',
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_REPLACE_ME_woven_patch_bw',
+    name: 'Woven Patch Black & White',
+    description: 'Signature black and white logo woven patch.',
+    weight: 0.5,
+    sizeWeights: { 'One Size': 0.5 },
+    category: 'accessories',
+    style: 'patches',
     colors: [], sizes: [], images: []
   },
 ];
@@ -194,7 +161,6 @@ export function getCategories(): Category[] {
     { id: 'tops', name: 'Tops' },
     { id: 'bottoms', name: 'Bottoms' },
     { id: 'hats', name: 'Hats' },
-    { id: 'bundles', name: 'Bundles' },
     { id: 'kids', name: 'Kids' },
     { id: 'accessories', name: 'Accessories' },
   ];
