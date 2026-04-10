@@ -19,6 +19,17 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
+    id: 'prod_UIdJEjUUbpBMdS',
+    name: 'Original Logo Tank- Men',
+    description: 'Built for comfort, style, and everyday wear. Featuring the signature MMOB logo, this tank represents confidence and intentional living.',
+    weight: 6.6,
+    sizeWeights: { 'S': 4.2, 'M': 4.7, 'L': 5.4, 'XL': 5.6, '2XL': 6.3, '3XL': 6.6 },
+    category: 'tops',
+    style: 'tops',
+    features: ['Relaxed fit', 'Breathable cotton blend'],
+    colors: [], sizes: [], images: []
+  },
+  {
     id: 'prod_TlO9hSyBakBOFx',
     name: 'Kids Jogger Set',
     description: 'Matching hoodie and joggers for the youth.',
