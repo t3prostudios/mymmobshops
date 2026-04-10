@@ -8,8 +8,8 @@ import type { Product, Category } from '@/types';
  */
 const products: Omit<Product, 'price' | 'stock'>[] = [
   {
-    id: 'prod_RntFrszv6v06UK', // Verify if this is Adult Tee
-    name: "Adult Tee's",
+    id: 'prod_RntFrszv6v06UK',
+    name: "Original Logo Tee-Adults",
     description: 'Signature heavy-weight cotton t-shirt built for comfort and style.',
     weight: 8,
     sizeWeights: { 'S': 7.2, 'M': 8, 'L': 8.8, 'XL': 9.5, '2XL': 10.2, '3XL': 11 },
@@ -19,8 +19,8 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlMHAxdwfVs5Td', // Verify if this is Adult Hoodie
-    name: "Adult Hoodie's",
+    id: 'prod_TlMHAxdwfVs5Td',
+    name: "Original Logo Hoodie-Adults",
     description: 'Premium fleece hoodie featuring our signature logo.',
     weight: 26,
     sizeWeights: { 'S': 22, 'M': 24, 'L': 26, 'XL': 28, '2XL': 30 },
@@ -30,8 +30,8 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO33CirJ52rIb', // Verify if this is Adult Jogger
-    name: "Adult Jogger's",
+    id: 'prod_TlO33CirJ52rIb',
+    name: "Original Logo Jogger's",
     description: 'Matching joggers for the perfect set or individual wear.',
     weight: 18,
     sizeWeights: { 'S': 16, 'M': 18, 'L': 20, 'XL': 22, '2XL': 24 },
@@ -42,7 +42,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_UIdJEjUUbpBMdS',
-    name: "Men's Tank",
+    name: "Original Logo Tank - Men",
     description: 'Built for confidence and intentional living.',
     weight: 6.6,
     sizeWeights: { 'S': 4.2, 'M': 4.7, 'L': 5.4, 'XL': 5.6, '2XL': 6.3, '3XL': 6.6 },
@@ -53,7 +53,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_REPLACE_ME_women_racerback', 
-    name: "Women's Racer Backs",
+    name: "Original Logo Racerback - Women",
     description: 'Flattering athletic fit racerback for daily inspiration.',
     weight: 5,
     sizeWeights: { 'XS': 4, 'S': 4.5, 'M': 5, 'L': 5.5, 'XL': 6 },
@@ -63,7 +63,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_TlOJWnyFyQMC55',
-    name: 'Zip-Up Hoodie',
+    name: 'Original Logo Zip - Up Hoodie',
     description: 'Classic heavy-duty zip hoodie for easy layering.',
     weight: 28,
     sizeWeights: { 'S': 24, 'M': 26, 'L': 28, 'XL': 30, '2XL': 32 },
@@ -73,7 +73,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_Tm0HnmbMNAV5Ab',
-    name: 'Trucker Hat',
+    name: 'Trucker Hats',
     description: 'Classic mesh-back trucker hat.',
     weight: 2.3,
     sizeWeights: { 'One Size': 2.3 },
@@ -84,7 +84,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_Tldd3U12TBS9Dj',
-    name: 'Beanie',
+    name: 'Beanies',
     description: 'Cozy knit beanie with embroidered logo.',
     weight: 3,
     sizeWeights: { 'One Size': 3 },
@@ -104,7 +104,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_REPLACE_ME_child_tee',
-    name: "Children's Tee's",
+    name: "Original Logo Tee - Kids",
     description: 'Durable and soft tees for the youth.',
     weight: 5,
     sizeWeights: { '2T': 4, '3T': 4.5, '4T': 5, '5T': 5.5, '6T': 6 },
@@ -114,7 +114,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_REPLACE_ME_child_hoodie',
-    name: "Children's Hoodies",
+    name: "Original Logo Hoodie - Kids",
     description: 'Warm and cozy hoodies for kids.',
     weight: 14,
     sizeWeights: { '2T': 10, '3T': 12, '4T': 14, '5T': 16, '6T': 18 },
@@ -124,12 +124,22 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_REPLACE_ME_child_jogger',
-    name: "Children's Joggers",
+    name: "Original Logo Joggers - Kids",
     description: 'Comfortable joggers built for play.',
     weight: 10,
     sizeWeights: { '2T': 8, '3T': 9, '4T': 10, '5T': 11, '6T': 12 },
     category: 'kids',
     style: 'pants',
+    colors: [], sizes: [], images: []
+  },
+  {
+    id: 'prod_REPLACE_ME_child_jogger_set',
+    name: "Original Logo Jogger Set - Kids",
+    description: 'Matching hoodie and jogger set for kids.',
+    weight: 24,
+    sizeWeights: { '2T': 18, '3T': 21, '4T': 24, '5T': 27, '6T': 30 },
+    category: 'kids',
+    style: 'bundles',
     colors: [], sizes: [], images: []
   },
   {
@@ -143,7 +153,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_REPLACE_ME_woven_patch_bw',
+    id: 'prod_TlO9hSyBakBOFx',
     name: 'Woven Patch Black & White',
     description: 'Signature black and white logo woven patch.',
     weight: 0.5,
