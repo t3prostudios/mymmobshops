@@ -323,8 +323,8 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                     <div key={order.id} className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800">
                         <div className="flex justify-between items-start">
                         <div>
-                            <p className="font-semibold">{order.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+                            <p className="font-semibold">{order.customerName || 'Customer'}</p>
+                            <p className="text-sm text-muted-foreground">{order.customerEmail || 'No email'}</p>
                             <p className="text-sm font-bold mt-1 capitalize text-blue-600 dark:text-blue-400">{order.deliveryMethod}</p>
                         </div>
                         <div className="text-right">
@@ -333,7 +333,7 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                         </div>
                         </div>
                         <ul className="text-sm mt-2 space-y-1">
-                        {order.orderItems.map((item, index) => (
+                        {order.orderItems?.map((item, index) => (
                             <li key={index}>- {item.name} (x{item.quantity})</li>
                         ))}
                         </ul>
@@ -366,8 +366,8 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                     <div key={order.id} className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-800/20 dark:border-gray-700 opacity-70">
                          <div className="flex justify-between items-start">
                         <div>
-                            <p className="font-semibold">{order.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+                            <p className="font-semibold">{order.customerName || 'Customer'}</p>
+                            <p className="text-sm text-muted-foreground">{order.customerEmail || 'No email'}</p>
                             <p className="text-xs text-muted-foreground mt-1">{order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
                         </div>
                         <p className="font-medium">{formatPrice(order.total)}</p>
@@ -799,7 +799,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
               <div key={complaint.id} className={cn("p-4 border rounded-lg", complaint.status === 'resolved' && 'bg-gray-100 dark:bg-gray-800 opacity-50')}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold">{complaint.name} <span className="text-sm text-muted-foreground">- {complaint.email}</span></p>
+                    <p className="font-semibold">{complaint.name || 'Anonymous'} <span className="text-sm text-muted-foreground">- {complaint.email || 'No email'}</span></p>
                     <p className="text-xs text-muted-foreground mt-1">{complaint.createdAt?.seconds ? new Date(complaint.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComplaintToDelete(complaint)}>
@@ -867,7 +867,7 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={setComplaintToDelete.bind(null, null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setComplaintToDelete(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDeleteComplaint} className={buttonVariants({ variant: "destructive" })}>Delete</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -892,12 +892,12 @@ function ReviewsTab({ reviews, isLoading }: { reviews: Review[] | null, isLoadin
               <div key={review.id} className="p-4 border rounded-lg">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold">{review.productName}</p>
-                    <p className="text-sm text-muted-foreground">by {review.authorName}</p>
+                    <p className="font-semibold">{review.productName || 'Product'}</p>
+                    <p className="text-sm text-muted-foreground">by {review.authorName || 'Guest'}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (
-                      <StarIcon key={i} className={cn("h-4 w-4", i < review.rating ? "text-yellow-400 fill-current" : "text-gray-300")} />
+                      <StarIcon key={i} className={cn("h-4 w-4", i < (review.rating || 0) ? "text-yellow-400 fill-current" : "text-gray-300")} />
                     ))}
                   </div>
                 </div>
@@ -1202,10 +1202,10 @@ export default function PosPage() {
 
   const newAccountsCount = useMemo(() => {
     if (!users || !twentyFourHoursAgo) return 0;
-    return users.filter(user => {
+    return users.filter(u => {
       try {
-        if (!user.registrationDate) return false;
-        const regDate = new Date(user.registrationDate);
+        if (!u.registrationDate) return false;
+        const regDate = new Date(u.registrationDate);
         return regDate > twentyFourHoursAgo;
       } catch (e) {
         return false;

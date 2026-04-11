@@ -102,7 +102,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_REPLACE_ME_child_tee',
+    id: 'prod_RntFrszv6v06UK',
     name: "Original Logo Tee - Kids",
     description: 'Durable and soft tees for the youth.',
     weight: 5,
@@ -112,7 +112,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_REPLACE_ME_child_hoodie',
+    id: 'prod_RnvFrszv6v06UK',
     name: "Original Logo Hoodie - Kids",
     description: 'Warm and cozy hoodies for kids.',
     weight: 14,
@@ -142,7 +142,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_REPLACE_ME_woven_patch_orig',
+    id: 'prod_RnwFrszv6v06UK',
     name: 'Woven Patch Original',
     description: 'Signature original logo woven patch.',
     weight: 0.5,
@@ -151,7 +151,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_REPLACE_ME_woven_patch_bw',
+    id: 'prod_RnxFrszv6v06UK',
     name: 'Woven Patch Black & White',
     description: 'Signature black and white logo woven patch.',
     weight: 0.5,

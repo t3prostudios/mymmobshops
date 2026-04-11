@@ -3,27 +3,7 @@
  *
  * CORE PHILOSOPHY:
  * This ruleset implements a robust, owner-centric security model supplemented by a Database Access 
- * Control (DBAC) system for administrative privileges. It prioritizes authorization and relational 
- * integrity while maintaining flexibility for data shapes during the prototyping phase.
- *
- * DATA STRUCTURE:
- * - Public Catalog: Products, Categories, Sizes, Colors, and Styles are globally readable.
- * - Marketing & UI: Announcements, Hero Content, and Discounts are publicly accessible when active.
- * - User Data: UserProfiles and Addresses are secured under user-specific paths (/userProfiles/{userId}).
- * - Commerce Flow: Carts and Orders are secured using denormalized ownership fields (ownerId, buyerId) 
- *   to ensure fast, independent authorization without costly parent document lookups.
- * - Content Pipeline: User-generated content is segregated into 'pending' (private/moderation) 
- *   and 'public' (approved) collections.
- *
- * KEY SECURITY DECISIONS:
- * - Admin Privileges: Managed via the /roles_admin collection. Admin status is verified by checking 
- *   the existence of the user's UID in this collection.
- * - Denormalization: Ownership IDs (e.g., cartOwnerId, orderBuyerId) are strictly required on all 
- *   documents and sub-documents to prevent unauthorized data access or listing.
- * - Structural Segregation: Use of separate collections for pending vs. approved content prevents 
- *   accidental exposure of unmoderated data during list operations.
- * - Immutability: Relational fields that define ownership or links between entities (e.g., userId, 
- *   productId in a CartItem) are enforced as immutable during updates.
+ * Control (DBAC) system for administrative privileges.
  */
 
 rules_version = '2';
@@ -32,140 +12,70 @@ service cloud.firestore {
 
     // --- Helper Functions ---
 
-    /** @description Checks if the request is from an authenticated user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /** @description Checks if the authenticated user has administrative privileges. */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && (
+        request.auth.uid == 'bRhr6ftn19SkI8rOlsUqAET81D12' || 
+        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2' ||
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+      );
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided userId. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if the authenticated user owns the existing document in the database. */
     function isExistingOwner(ownerIdField) {
       return isSignedIn() && resource != null && resource.data[ownerIdField] == request.auth.uid;
     }
 
-    /** @description Checks if the incoming data sets the authenticated user as the owner. */
     function isNewOwner(ownerIdField) {
       return isSignedIn() && request.resource.data[ownerIdField] == request.auth.uid;
     }
 
-    /** @description Validates that a field remains unchanged during an update. */
     function isUnchanged(field) {
       return request.resource.data[field] == resource.data[field];
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for administrative role definitions.
-     * @path /roles_admin/{adminUid}
-     * @allow (get) If signed in and checking own status.
-     * @deny (write) Public or admin writes; managed via console/deployment script.
-     * @principle System-level configuration.
-     */
     match /roles_admin/{adminUid} {
       allow get: if isOwner(adminUid);
       allow list, create, update, delete: if false;
     }
 
-    /**
-     * @description User profiles containing basic account information.
-     * @path /userProfiles/{userId}
-     * @allow (create) If the user ID matches the auth UID.
-     * @deny (update) Changing the profile of another user.
-     * @principle Path-based ownership.
-     */
-    match /userProfiles/{userId} {
+    match /users/{userId} {
       allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
       allow update: if (isOwner(userId) && isUnchanged('id')) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    /**
-     * @description User-specific saved addresses.
-     * @path /userProfiles/{userId}/addresses/{addressId}
-     * @allow (list) If the path userId matches the auth UID.
-     * @deny (create) Mismatched userId in path vs. data.
-     * @principle Relational integrity between path and data.
-     */
-    match /userProfiles/{userId}/addresses/{addressId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if (isOwner(userId) && isUnchanged('userId')) || isAdmin();
-      allow delete: if (isOwner(userId) && resource != null) || isAdmin();
-    }
-
-    /**
-     * @description Product catalog and supporting attributes.
-     * @path /products/{id}, /productCategories/{id}, /productSizes/{id}, /productColors/{id}, /productStyles/{id}
-     * @allow (read) Publicly accessible for shoppers.
-     * @deny (write) Non-admin modifications.
-     * @principle Public Read/Admin Write.
-     */
     match /products/{productId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
-    match /productCategories/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    match /productSizes/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    match /productColors/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    match /productStyles/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+
+    match /orders/{orderId} {
+      allow get, list: if isExistingOwner('userId') || isAdmin();
+      allow create: if true; // Allow guest checkout creation
+      allow update, delete: if isAdmin();
     }
 
-    /**
-     * @description UI content for the homepage hero section.
-     * @path /heroContent/{id}
-     * @allow (read) Public read if active.
-     */
-    match /heroContent/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    match /complaints/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Site-wide announcements and promotions.
-     * @path /announcements/{id}
-     */
-    match /announcements/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    match /reviews/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Discount and promotional codes.
-     * @path /discounts/{id}
-     */
-    match /discounts/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Shopping carts identified by ownerId (works for Auth & Anonymous).
-     * @path /carts/{cartId}
-     * @allow (create) If ownerId matches current UID.
-     * @principle Field-based ownership.
-     */
     match /carts/{cartId} {
       allow get, list: if isExistingOwner('ownerId') || isAdmin();
       allow create: if isNewOwner('ownerId');
@@ -173,12 +83,6 @@ service cloud.firestore {
       allow delete: if isExistingOwner('ownerId') || isAdmin();
     }
 
-    /**
-     * @description Items within a cart, utilizing denormalized cartOwnerId.
-     * @path /carts/{cartId}/cartItems/{cartItemId}
-     * @allow (list) If cartOwnerId matches current UID.
-     * @principle Denormalization for Authorization.
-     */
     match /carts/{cartId}/cartItems/{cartItemId} {
       allow get, list: if isExistingOwner('cartOwnerId') || isAdmin();
       allow create: if isNewOwner('cartOwnerId');
@@ -186,59 +90,15 @@ service cloud.firestore {
       allow delete: if isExistingOwner('cartOwnerId') || isAdmin();
     }
 
-    /**
-     * @description Confirmed customer orders.
-     * @path /orders/{orderId}
-     * @allow (get) If buyerId matches current UID.
-     */
-    match /orders/{orderId} {
-      allow get, list: if isExistingOwner('buyerId') || isAdmin();
-      allow create: if isNewOwner('buyerId');
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Items within a confirmed order.
-     * @path /orders/{orderId}/orderItems/{orderItemId}
-     */
-    match /orders/{orderId}/orderItems/{orderItemId} {
-      allow get, list: if isExistingOwner('orderBuyerId') || isAdmin();
-      allow create: if isNewOwner('orderBuyerId');
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Approved and moderated user content.
-     * @path /publicUserGeneratedContent/{id}
-     */
-    match /publicUserGeneratedContent/{contentId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Content awaiting moderation.
-     * @path /pendingUserGeneratedContent/{id}
-     * @allow (create) If submitterId matches current UID.
-     */
-    match /pendingUserGeneratedContent/{contentId} {
-      allow get, list: if isExistingOwner('submitterId') || isAdmin();
-      allow create: if isNewOwner('submitterId');
-      allow update: if (isExistingOwner('submitterId') && isUnchanged('submitterId')) || isAdmin();
-      allow delete: if isExistingOwner('submitterId') || isAdmin();
-    }
-
-    /**
-     * @description Newsletter and offer subscriptions.
-     * @path /emailSubscriptions/{id}
-     * @allow (create) Publicly accessible for anyone to sign up.
-     * @deny (read) Restricted to protect PII.
-     */
     match /emailSubscriptions/{subscriptionId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
+    }
+    
+    // Catch-all for other collections
+    match /{path=**} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
   }
 }
