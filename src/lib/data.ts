@@ -1,15 +1,14 @@
-
 import type { Product, Category } from '@/types';
 
 /**
  * PRODUCT ENRICHMENT DATA
- * This file maps Stripe Product IDs to ounce-based weights and marketing features.
- * Stripe Metadata is the source of truth for stock; this file handles the shipping math.
+ * Mapping Stripe Product IDs to ounce-based weights and marketing features.
+ * Stripe Metadata is the source of truth for stock; this file handles shipping math.
  */
 const products: Omit<Product, 'price' | 'stock'>[] = [
   {
     id: 'prod_Tm2Q07mRacfdps',
-    name: "Original Logo Tee-Adults",
+    name: "Original Logo Tee - Adults",
     description: 'Signature heavy-weight cotton t-shirt built for comfort and style.',
     weight: 8.8,
     sizeWeights: { 'S': 5.8, 'M': 6.6, 'L': 7.1, 'XL': 7.5, '2XL': 8.6, '3XL': 9.6, '4XL': 11.8 },
@@ -20,7 +19,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_UGmJAsWNuw1VOa',
-    name: "Original Logo Hoodie-Adults",
+    name: "Original Logo Hoodie - Adults",
     description: 'Premium fleece hoodie featuring our signature logo.',
     weight: 20.4,
     sizeWeights: { 'S': 17.8, 'M': 18.3, 'L': 20.4, 'XL': 22.1, '2XL': 23, '3X': 25.3, '4X': 26.2 },
@@ -31,7 +30,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_TlO33CirJ52rIb',
-    name: "Original Logo Jogger's",
+    name: "Original Logo Joggers - Adults",
     description: 'Matching joggers for the perfect set or individual wear.',
     weight: 15.5,
     sizeWeights: { 'S': 14.1, 'M': 14.7, 'L': 15.5, 'XL': 15.9, '2XL': 16.4, '3X': 16.7 },
@@ -63,7 +62,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   },
   {
     id: 'prod_TlOJWnyFyQMC55',
-    name: 'Original Logo Zip - Up Hoodie',
+    name: 'Original Logo Zip-Up Hoodie',
     description: 'Classic heavy-duty zip hoodie for easy layering.',
     weight: 21.6,
     sizeWeights: { 'S': 18.7, 'M': 19, 'L': 21.6, 'XL': 22.2, '2XL': 24.8, '3XL': 25 },
@@ -96,14 +95,14 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     id: 'prod_Tm0iUPGxLFC7yE',
     name: 'Infant Onesie',
     description: 'Softest organic cotton onesie.',
-    weight: 3,
+    weight: 2,
     sizeWeights: { '0-3M': 1.6, '3-6M': 1.7, '6-9M': 1.8, '12M': 1.9, '18M': 2, '24M': 2.2 },
     category: 'kids',
     style: 'onesies',
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_UGmJAsWNuw1VOa',
+    id: 'prod_REPLACE_ME_child_tee',
     name: "Original Logo Tee - Kids",
     description: 'Durable and soft tees for the youth.',
     weight: 5,
@@ -143,21 +142,19 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO9hSyBakBOFx',
+    id: 'prod_REPLACE_ME_woven_patch_orig',
     name: 'Woven Patch Original',
     description: 'Signature original logo woven patch.',
     weight: 0.5,
-    sizeWeights: { 'S': 18.5, 'M': 19, 'L': 20.7, 'XL': 22.8, '2X': 23.7, '3X': 26, '4X': 26.9 },
     category: 'accessories',
     style: 'patches',
     colors: [], sizes: [], images: []
   },
   {
-    id: 'prod_TlO9hSyBakBOFx',
+    id: 'prod_REPLACE_ME_woven_patch_bw',
     name: 'Woven Patch Black & White',
     description: 'Signature black and white logo woven patch.',
-    weight: 21,
-    sizeWeights: { 'S': 18.8, 'M': 19.3, 'L': 21, 'XL': 23.1, '2X': 24, '3X': 26.3, '4X': 27.2 },
+    weight: 0.5,
     category: 'accessories',
     style: 'patches',
     colors: [], sizes: [], images: []
