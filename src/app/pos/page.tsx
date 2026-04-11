@@ -1125,9 +1125,12 @@ function ManualEntryDialog({
 }
 
 function ExpirationTimer({ expiresAt }: { expiresAt: number }) {
-  const [timeLeft, setTimeLeft] = useState(expiresAt - Date.now());
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   useEffect(() => {
+    // Setting state in useEffect ensures this only runs on the client,
+    // avoiding server/client mismatch during hydration.
+    setTimeLeft(expiresAt - Date.now());
     const timer = setInterval(() => {
       setTimeLeft(expiresAt - Date.now());
     }, 1000);
@@ -1135,6 +1138,7 @@ function ExpirationTimer({ expiresAt }: { expiresAt: number }) {
     return () => clearInterval(timer);
   }, [expiresAt]);
 
+  if (timeLeft === null) return null;
   if (timeLeft <= 0) {
     return <p className="text-xs text-red-500">Expired</p>;
   }

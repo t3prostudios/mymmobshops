@@ -26,9 +26,9 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
-        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2' ||
-        request.auth.uid == 'bRhr6ftn19SkI8rOlsUqAET81D12'
+        request.auth.uid == 'bRhr6ftn19SkI8rOlsUqAET81D12' || // Live Session Admin UID
+        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2' || // Development Admin UID
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
       );
     }
 
