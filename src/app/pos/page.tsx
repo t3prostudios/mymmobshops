@@ -59,19 +59,17 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-type CartItem = {
-  id: string; 
-  name: string;
-  price: number;
-  quantity: number;
-  productId: string;
-  color: string;
-  size: string;
-  expiresAt?: number;
-  customerEmail?: string;
-};
+// --- HELPERS ---
 
-type ReaderStatus = 'idle' | 'discovering' | 'connecting' | 'connected';
+/**
+ * Prevents hydration mismatch by only rendering content after component has mounted on client.
+ */
+function SafeClientRender({ children, fallback = null }: { children: React.ReactNode, fallback?: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return fallback;
+  return <>{children}</>;
+}
 
 function TabBadge({ count }: { count: number }) {
   if (count === 0) return null;
@@ -82,13 +80,15 @@ function TabBadge({ count }: { count: number }) {
   );
 }
 
+// --- DIALOGS ---
+
 function ManageProductDialog({ product, isOpen, onOpenChange, onUpdate }: { product: Product, isOpen: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void }) {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
-    const [stockState, setStockState] = useState<Stock[]>(product.stock);
+    const [stockState, setStockState] = useState<Stock[]>(product.stock || []);
 
     useEffect(() => {
-        setStockState(product.stock);
+        setStockState(product.stock || []);
     }, [product]);
 
     const handleUpdateChange = (index: number, value: string) => {
@@ -155,7 +155,6 @@ function ManageProductDialog({ product, isOpen, onOpenChange, onUpdate }: { prod
                         )) : (
                           <div className="text-center py-8">
                             <p className="text-sm text-muted-foreground">No metadata found for variants.</p>
-                            <p className="text-xs text-muted-foreground mt-2">Add metadata keys in Stripe to track stock.</p>
                           </div>
                         )}
                     </div>
@@ -186,19 +185,19 @@ function AddToCartDialog({
     const [selectedSize, setSelectedSize] = useState<string>('');
 
     const allColors = useMemo(() => {
-        if (!product) return [];
+        if (!product || !product.stock) return [];
         return Array.from(new Set(product.stock.map(s => s.color)));
     }, [product]);
 
     const getColorTotalStock = (color: string) => {
-        if (!product) return 0;
+        if (!product || !product.stock) return 0;
         return product.stock
             .filter(s => s.color === color)
             .reduce((sum, s) => sum + s.quantity, 0);
     };
 
     const availableSizes = useMemo(() => {
-        if (!product || !selectedColor) return [];
+        if (!product || !selectedColor || !product.stock) return [];
         return product.stock
             .filter(s => s.color === selectedColor)
             .map(s => ({ 
@@ -287,6 +286,8 @@ function AddToCartDialog({
     );
 }
 
+// --- TABS ---
+
 function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoading: boolean}) {
     const { firestore } = useFirebase();
     const [fulfilledOrderSearch, setFulfilledOrderSearch] = useState('');
@@ -328,8 +329,12 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                             <p className="text-sm font-bold mt-1 capitalize text-blue-600 dark:text-blue-400">{order.deliveryMethod}</p>
                         </div>
                         <div className="text-right">
-                            <p className="font-bold text-lg">{formatPrice(order.total)}</p>
-                            <p className="text-xs text-muted-foreground">{order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
+                            <p className="font-bold text-lg">{formatPrice(order.total || 0)}</p>
+                            <p className="text-xs text-muted-foreground">
+                                <SafeClientRender fallback="...">
+                                    {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+                                </SafeClientRender>
+                            </p>
                         </div>
                         </div>
                         <ul className="text-sm mt-2 space-y-1">
@@ -368,9 +373,13 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
                         <div>
                             <p className="font-semibold">{order.customerName || 'Customer'}</p>
                             <p className="text-sm text-muted-foreground">{order.customerEmail || 'No email'}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                <SafeClientRender fallback="...">
+                                    {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                                </SafeClientRender>
+                            </p>
                         </div>
-                        <p className="font-medium">{formatPrice(order.total)}</p>
+                        <p className="font-medium">{formatPrice(order.total || 0)}</p>
                         </div>
                     </div>
                     ))
@@ -384,24 +393,22 @@ function NotificationsTab({ orders, isLoading }: { orders: Order[] | null, isLoa
     )
 }
 
-const shippingFormSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  trackingNumber: z.string().min(1, 'Tracking number is required.'),
-});
-
 function ShippingTab() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof shippingFormSchema>>({
-    resolver: zodResolver(shippingFormSchema),
+  const form = useForm({
+    resolver: zodResolver(z.object({
+        email: z.string().email({ message: 'Please enter a valid email address.' }),
+        trackingNumber: z.string().min(1, 'Tracking number is required.'),
+    })),
     defaultValues: {
       email: '',
       trackingNumber: '',
     },
   });
 
-  async function onSubmit(values: z.infer<typeof shippingFormSchema>) {
+  async function onSubmit(values: any) {
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append('email', values.email);
@@ -410,24 +417,13 @@ function ShippingTab() {
     try {
       const result = await handleShippingNotification(formData);
       if (result?.error) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.error,
-        });
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
       } else {
-        toast({
-          title: 'Success!',
-          description: `Tracking number sent to ${values.email}.`,
-        });
+        toast({ title: 'Success!', description: `Tracking number sent to ${values.email}.` });
         form.reset();
       }
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'An unexpected error occurred.',
-        description: 'Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to send notification.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -438,9 +434,6 @@ function ShippingTab() {
         <div className="mx-auto max-w-md">
             <div className="text-center mb-8">
               <h1 className="text-2xl font-headline">Send Shipping Notification</h1>
-              <p className="text-muted-foreground mt-2 text-sm">
-                Enter the customer's email and tracking number to send a shipping update.
-              </p>
             </div>
             <div className="bg-background dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg border">
                 <Form {...form}>
@@ -451,13 +444,7 @@ function ShippingTab() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Customer Email</FormLabel>
-                            <FormControl>
-                                <Input
-                                type="email"
-                                placeholder="customer@example.com"
-                                {...field}
-                                />
-                            </FormControl>
+                            <FormControl><Input type="email" placeholder="customer@example.com" {...field} /></FormControl>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -468,9 +455,7 @@ function ShippingTab() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>USPS Tracking Number</FormLabel>
-                            <FormControl>
-                                <Input placeholder="9400111202555842673259" {...field} />
-                            </FormControl>
+                            <FormControl><Input placeholder="USPS Tracking #" {...field} /></FormControl>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -487,96 +472,6 @@ function ShippingTab() {
   );
 }
 
-const emailFormSchema = z.object({
-  subject: z.string().min(1, 'Subject is required.'),
-  message: z.string().min(1, 'Message is required.'),
-});
-
-function SendEmailDialog({ user, isOpen, onOpenChange }: { user: UserAccount | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
-  const { toast } = useToast();
-  const [isSending, setIsSending] = useState(false);
-  
-  const form = useForm<z.infer<typeof emailFormSchema>>({
-    resolver: zodResolver(emailFormSchema),
-    defaultValues: { subject: '', message: '' },
-  });
-
-  useEffect(() => {
-    if (!isOpen) {
-      form.reset();
-    }
-  }, [isOpen, form]);
-
-  async function onSubmit(values: z.infer<typeof emailFormSchema>) {
-    if (!user) return;
-    setIsSending(true);
-    const formData = new FormData();
-    formData.append("customerEmail", user.email);
-    formData.append("subject", values.subject);
-    formData.append("message", values.message);
-    
-    const result = await handleSendPosEmail(formData);
-    
-    if (result.error) {
-      toast({ variant: 'destructive', title: 'Error', description: result.error });
-    } else {
-      toast({ title: 'Success', description: 'Email sent successfully.' });
-      onOpenChange(false);
-    }
-    setIsSending(false);
-  }
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Send Email to {user?.firstName} {user?.lastName}</DialogTitle>
-          <DialogDescription>Compose your message below. It will be sent from shopmmob@gmail.com.</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormItem>
-              <FormLabel>To</FormLabel>
-              <FormControl>
-                <Input value={user?.email || ''} disabled />
-              </FormControl>
-            </FormItem>
-            <FormField
-              control={form.control}
-              name="subject"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Subject</FormLabel>
-                  <FormControl><Input {...field} placeholder="A message from Minding My Own Business" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Message</FormLabel>
-                  <FormControl><Textarea {...field} placeholder="Your message here..." className="min-h-[150px]" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSending}>
-                <Send className="mr-2 h-4 w-4" />
-                {isSending ? "Sending..." : "Send Email"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoading: boolean }) {
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -588,17 +483,9 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
         if (!firestore || !userToDelete) return;
         try {
             await deleteDoc(doc(firestore, 'users', userToDelete.id));
-            toast({
-                title: "Account Deleted",
-                description: `The account for ${userToDelete.firstName} ${userToDelete.lastName} has been deleted.`,
-            });
+            toast({ title: "Account Deleted", description: `Account for ${userToDelete.firstName} deleted.` });
         } catch (error) {
-            console.error("Error deleting user:", error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to delete account.",
-            });
+            toast({ variant: "destructive", title: "Error", description: "Failed to delete account." });
         } finally {
             setUserToDelete(null);
         }
@@ -607,10 +494,11 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
     const filteredUsers = useMemo(() => {
         if (!users) return [];
         if (!searchTerm) return users;
+        const lower = searchTerm.toLowerCase();
         return users.filter(user =>
-            (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+            (user.firstName?.toLowerCase() || '').includes(lower) ||
+            (user.lastName?.toLowerCase() || '').includes(lower) ||
+            (user.email?.toLowerCase() || '').includes(lower)
         );
     }, [users, searchTerm]);
 
@@ -626,7 +514,7 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
              <div className="relative w-full max-w-sm mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search by name or email..."
+                    placeholder="Search accounts..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9"
@@ -635,33 +523,31 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
             <ScrollArea className="h-[calc(100vh-300px)]">
                 <div className="space-y-3 pr-4">
                     {filteredUsers.length > 0 ? (
-                        filteredUsers.map(user => (
-                            <div key={user.id} className="p-4 border rounded-lg flex justify-between items-center">
+                        filteredUsers.map(u => (
+                            <div key={u.id} className="p-4 border rounded-lg flex justify-between items-center">
                                 <div>
-                                    <p className="font-semibold">{user.firstName} {user.lastName}</p>
-                                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                                    {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
-                                    {user.address && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {user.address}, {user.city}, {user.state} {user.postalCode}, {user.country}
-                                        </p>
-                                    )}
-                                    <p className="text-xs text-muted-foreground mt-1">Joined: {user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'N/A'}</p>
+                                    <p className="font-semibold">{u.firstName} {u.lastName}</p>
+                                    <p className="text-sm text-muted-foreground">{u.email}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Joined: <SafeClientRender fallback="...">
+                                            {u.registrationDate ? new Date(u.registrationDate).toLocaleDateString() : 'N/A'}
+                                        </SafeClientRender>
+                                    </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{user.loyaltyPoints || 0}</p>
-                                    <p className="text-xs text-muted-foreground">Loyalty Points</p>
+                                  <div className="text-right mr-4">
+                                    <p className="font-bold text-lg text-primary">{u.loyaltyPoints || 0}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase">Points</p>
                                   </div>
-                                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setEmailingUser(user)}>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setEmailingUser(u)}>
                                     <Mail className="h-4 w-4" />
                                   </Button>
                                   <Button size="icon" variant="outline" className="h-8 w-8" asChild>
-                                    <Link href={`/pos/accounts/${user.id}`}>
+                                    <Link href={`/pos/accounts/${u.id}`}>
                                       <Pencil className="h-4 w-4" />
                                     </Link>
                                   </Button>
-                                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => setUserToDelete(user)}>
+                                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => setUserToDelete(u)}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
@@ -673,17 +559,21 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
                 </div>
             </ScrollArea>
 
-            <SendEmailDialog user={emailingUser} isOpen={!!emailingUser} onOpenChange={(open) => !open && setEmailingUser(null)} />
+            {emailingUser && (
+                <SendEmailDialog 
+                    user={emailingUser} 
+                    isOpen={!!emailingUser} 
+                    onOpenChange={(open) => !open && setEmailingUser(null)} 
+                />
+            )}
              <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the account for {userToDelete?.firstName} {userToDelete?.lastName}.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>Delete Account?</AlertDialogTitle>
+                        <AlertDialogDescription>Permanently delete account for {userToDelete?.firstName}.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteUser} className={buttonVariants({ variant: "destructive" })}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -692,41 +582,91 @@ function AccountsTab({ users, isLoading }: { users: UserAccount[] | null, isLoad
     )
 }
 
+function SendEmailDialog({ user, isOpen, onOpenChange }: { user: UserAccount | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [isSending, setIsSending] = useState(false);
+  
+  const form = useForm({
+    resolver: zodResolver(z.object({
+        subject: z.string().min(1, 'Subject required'),
+        message: z.string().min(1, 'Message required'),
+    })),
+    defaultValues: { subject: '', message: '' },
+  });
+
+  async function onSubmit(values: any) {
+    if (!user) return;
+    setIsSending(true);
+    try {
+        const formData = new FormData();
+        formData.append("customerEmail", user.email);
+        formData.append("subject", values.subject);
+        formData.append("message", values.message);
+        const result = await handleSendPosEmail(formData);
+        if (result.error) throw new Error(result.error);
+        toast({ title: 'Success', description: 'Email sent.' });
+        onOpenChange(false);
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+        setIsSending(false);
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Email {user?.firstName}</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Message</FormLabel>
+                  <FormControl><Textarea {...field} className="min-h-[150px]" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="submit" disabled={isSending}>
+                <Send className="mr-2 h-4 w-4" />
+                {isSending ? "Sending..." : "Send"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | null, isLoading: boolean }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [complaintToResolve, setComplaintToResolve] = useState<Complaint | null>(null);
-  const [complaintToDelete, setComplaintToDelete] = useState<Complaint | null>(null);
   const [password, setPassword] = useState('');
   const [isEscalating, setIsEscalating] = useState<string | null>(null);
-  const [hasCleanedUp, setHasCleanedUp] = useState(false);
-
-  useEffect(() => {
-    if (isLoading || !complaints || !firestore || hasCleanedUp) return;
-
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-    
-    complaints.forEach(c => {
-        if (c.status === 'resolved' && c.resolvedAt?.seconds) {
-            const resolvedTime = new Date(c.resolvedAt.seconds * 1000);
-            if (resolvedTime < twelveHoursAgo) {
-                const docRef = doc(firestore, 'complaints', c.id);
-                deleteDoc(docRef).catch(error => console.error("Error auto-delete complaint:", error));
-            }
-        }
-    });
-
-    setHasCleanedUp(true);
-  }, [complaints, isLoading, firestore, hasCleanedUp]);
   
-  const handleUpdateStatus = async (complaintId: string, status: Complaint['status']) => {
+  const handleUpdateStatus = async (complaintId: string, status: any) => {
     if (!firestore) return;
     const complaintRef = doc(firestore, "complaints", complaintId);
-    const updateData: { status: Complaint['status'], resolvedAt?: any } = { status: status };
-    if (status === 'resolved') {
-      updateData.resolvedAt = serverTimestamp();
-    }
-    await updateDoc(complaintRef, updateData);
+    await updateDoc(complaintRef, { status, resolvedAt: status === 'resolved' ? serverTimestamp() : null });
   };
   
   const onEscalateClick = async (complaint: Complaint) => {
@@ -738,1070 +678,296 @@ function ComplaintsTab({ complaints, isLoading }: { complaints: Complaint[] | nu
             issue: complaint.issue,
             createdAt: complaint.createdAt?.seconds ? new Date(complaint.createdAt.seconds * 1000).toLocaleString() : 'N/A',
         });
-
-        if (result.error) {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
-        } else {
-            await handleUpdateStatus(complaint.id, 'escalated');
-            toast({ title: 'Success', description: 'Complaint has been escalated.' });
-        }
-    } catch (e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to escalate complaint.' });
+        if (result.error) throw new Error(result.error);
+        await handleUpdateStatus(complaint.id, 'escalated');
+        toast({ title: 'Success', description: 'Complaint escalated.' });
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message });
     } finally {
         setIsEscalating(null);
     }
   }
 
-  const handleResolve = async () => {
-    if (password !== 'Murder11500') {
-        toast({ variant: 'destructive', title: 'Incorrect Password' });
-        return;
-    }
-    if (complaintToResolve) {
-        await handleUpdateStatus(complaintToResolve.id, 'resolved');
-        toast({ title: "Success", description: "Complaint marked as resolved." });
-        setComplaintToResolve(null);
-        setPassword('');
-    }
-  };
-
-  const handleDeleteComplaint = async () => {
-    if (!firestore || !complaintToDelete) return;
-    try {
-      await deleteDoc(doc(firestore, "complaints", complaintToDelete.id));
-      toast({
-        title: "Complaint Deleted",
-        description: "The complaint has been permanently removed.",
-      });
-    } catch (error) {
-        console.error("Error deleting complaint: ", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not delete the complaint.",
-        });
-    } finally {
-        setComplaintToDelete(null);
-    }
-  };
-  
-  if (isLoading) {
-    return <div className="text-center p-8">Loading complaints...</div>
-  }
+  if (isLoading) return <div className="text-center p-8">Loading complaints...</div>
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><MessageSquare className="h-5 w-5" />Customer Complaints</h2>
+      <h2 className="text-xl font-semibold mb-3">Complaints</h2>
       <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-3 pr-4">
-          {complaints && complaints.length > 0 ? (
-            complaints.map(complaint => (
-              <div key={complaint.id} className={cn("p-4 border rounded-lg", complaint.status === 'resolved' && 'bg-gray-100 dark:bg-gray-800 opacity-50')}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">{complaint.name || 'Anonymous'} <span className="text-sm text-muted-foreground">- {complaint.email || 'No email'}</span></p>
-                    <p className="text-xs text-muted-foreground mt-1">{complaint.createdAt?.seconds ? new Date(complaint.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComplaintToDelete(complaint)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-                <p className="text-sm mt-3">{complaint.issue}</p>
-                <div className="flex justify-between items-center mt-3">
-                    <Select value={complaint.status} onValueChange={(value) => handleUpdateStatus(complaint.id, value as any)} disabled={['escalated', 'resolved'].includes(complaint.status)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="new">New</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="escalated" disabled>Escalated</SelectItem>
-                        <SelectItem value="resolved" disabled>Resolved</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {complaint.status === 'resolved' ? (
-                        <Button size="sm" disabled>Resolved</Button>
-                    ) : complaint.status === 'escalated' ? (
-                        <Button size="sm" onClick={() => setComplaintToResolve(complaint)}>Escalated</Button>
-                    ) : (
-                        <Button size="sm" onClick={() => onEscalateClick(complaint)} disabled={isEscalating === complaint.id}>
-                            {isEscalating === complaint.id ? 'Escalating...' : 'Escalate'}
-                        </Button>
-                    )}
-                </div>
+        <div className="space-y-3">
+          {complaints?.map(c => (
+            <div key={c.id} className={cn("p-4 border rounded-lg", c.status === 'resolved' && 'opacity-50 grayscale bg-muted')}>
+              <div className="flex justify-between">
+                <p className="font-semibold">{c.name} <span className="text-xs text-muted-foreground">({c.email})</span></p>
+                <SafeClientRender fallback="...">
+                    <span className="text-[10px] uppercase">{c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleDateString() : ''}</span>
+                </SafeClientRender>
               </div>
-            ))
-          ) : (
-            <p className="text-muted-foreground text-sm text-center py-10">No complaints have been submitted yet.</p>
-          )}
+              <p className="text-sm mt-2">{c.issue}</p>
+              <div className="flex justify-end gap-2 mt-4">
+                {c.status !== 'resolved' && (
+                    <>
+                        <Button size="sm" variant="outline" onClick={() => onEscalateClick(c)} disabled={isEscalating === c.id}>
+                            {isEscalating === c.id ? "..." : "Escalate"}
+                        </Button>
+                        <Button size="sm" onClick={() => setComplaintToResolve(c)}>Resolve</Button>
+                    </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </ScrollArea>
-       <AlertDialog open={!!complaintToResolve} onOpenChange={(open) => !open && setComplaintToResolve(null)}>
+      <AlertDialog open={!!complaintToResolve} onOpenChange={(open) => !open && setComplaintToResolve(null)}>
         <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Resolve Complaint</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Enter the password to mark this complaint as resolved.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <Input 
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleResolve()}
-            />
+            <AlertDialogHeader><AlertDialogTitle>Resolve Issue</AlertDialogTitle></AlertDialogHeader>
+            <Input type="password" placeholder="Passphrase" value={password} onChange={(e) => setPassword(e.target.value)} />
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => { setComplaintToResolve(null); setPassword(''); }}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleResolve}>Submit</AlertDialogAction>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                    if (password === 'Murder11500') {
+                        handleUpdateStatus(complaintToResolve!.id, 'resolved');
+                        setComplaintToResolve(null);
+                        setPassword('');
+                    } else {
+                        toast({ variant: 'destructive', title: 'Wrong Pass' });
+                    }
+                }}>Submit</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
-    <AlertDialog open={!!complaintToDelete} onOpenChange={(open) => !open && setComplaintToDelete(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the complaint.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setComplaintToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteComplaint} className={buttonVariants({ variant: "destructive" })}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
     </div>
   )
 }
 
 function ReviewsTab({ reviews, isLoading }: { reviews: Review[] | null, isLoading: boolean }) {
-  
-  if (isLoading) {
-    return <div className="text-center p-8">Loading reviews...</div>
-  }
-
+  if (isLoading) return <div className="text-center p-8">Loading...</div>
   return (
     <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><StarIcon className="h-5 w-5" />Product Reviews</h2>
+      <h2 className="text-xl font-semibold mb-3">Product Reviews</h2>
        <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-3 pr-4">
-          {reviews && reviews.length > 0 ? (
-            reviews.map(review => (
-              <div key={review.id} className="p-4 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">{review.productName || 'Product'}</p>
-                    <p className="text-sm text-muted-foreground">by {review.authorName || 'Guest'}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <StarIcon key={i} className={cn("h-4 w-4", i < (review.rating || 0) ? "text-yellow-400 fill-current" : "text-gray-300")} />
-                    ))}
-                  </div>
+        <div className="space-y-3">
+          {reviews?.map(r => (
+            <div key={r.id} className="p-4 border rounded-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-semibold">{r.productName}</p>
+                  <p className="text-xs text-muted-foreground">by {r.authorName}</p>
                 </div>
-                <p className="text-sm mt-3 italic">"{review.comment}"</p>
-                 <p className="text-xs text-muted-foreground mt-2 text-right">{review.createdAt?.seconds ? new Date(review.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                <div className="flex gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <StarIcon key={i} className={cn("h-3 w-3", i < (r.rating || 0) ? "text-yellow-400 fill-current" : "text-gray-300")} />
+                  ))}
+                </div>
               </div>
-            ))
-          ) : (
-            <p className="text-muted-foreground text-sm text-center py-10">No reviews have been submitted yet.</p>
-          )}
+              <p className="text-sm mt-2 italic">"{r.comment}"</p>
+            </div>
+          ))}
         </div>
       </ScrollArea>
     </div>
   )
 }
 
-const manualItemSchema = z.object({
-  name: z.string().min(1, 'Item name is required.'),
-  customerEmail: z.string().email({ message: "Invalid email format."}).optional().or(z.literal('')),
-  price: z.coerce.number().min(0.01, 'Price must be greater than 0.'),
-  duration: z.string().optional(),
-});
-
-function ManualEntryDialog({
-  isOpen,
-  onOpenChange,
-  onManualItemSubmit,
-}: {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onManualItemSubmit: (itemData: z.infer<typeof manualItemSchema>) => void;
-}) {
-  const { firestore } = useFirebase();
-  const { toast } = useToast();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [emailCheck, setEmailCheck] = useState<{
-    status: 'idle' | 'checking' | 'verified' | 'not_found';
-    message?: string;
-  }>({ status: 'idle' });
-
-  const form = useForm<z.infer<typeof manualItemSchema>>({
-    resolver: zodResolver(manualItemSchema),
-    defaultValues: {
-      name: '',
-      customerEmail: '',
-      price: undefined,
-      duration: '5',
-    },
-  });
-
-  const handleCheckEmail = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const email = form.getValues('customerEmail');
-    if (!email) {
-      form.setError('customerEmail', { message: 'Email is required to check.' });
-      return;
-    }
-    
-    setIsVerifying(true);
-    setEmailCheck({ status: 'checking' });
-    if (!firestore) {
-      setEmailCheck({ status: 'idle', message: 'Database not connected.' });
-      setIsVerifying(false);
-      return;
-    }
-    
-    const usersRef = collection(firestore, 'users');
-    const q = query(usersRef, where("email", "==", email));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      setEmailCheck({ status: 'verified', message: 'Customer found.' });
-    } else {
-      setEmailCheck({ status: 'not_found', message: 'No account found.' });
-    }
-    setIsVerifying(false);
-  };
-
-  const handleAddAccountInstructions = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    toast({
-        title: "Instructions",
-        description: "Ask the customer to go to the website on their phone and sign up to create an account.",
-    });
-  };
-
-  function onSubmit(values: z.infer<typeof manualItemSchema>) {
-    const finalValues = {
-        ...values,
-        customerEmail: emailCheck.status === 'verified' ? values.customerEmail : ''
-    };
-    onManualItemSubmit(finalValues);
-    onOpenChange(false);
-  }
-  
-  const customerEmailValue = form.watch('customerEmail');
-  useEffect(() => {
-    if (emailCheck.status !== 'idle') {
-      setEmailCheck({ status: 'idle' });
-    }
-  }, [customerEmailValue]);
-
-  useEffect(() => {
-    if (isOpen) {
-        form.reset({
-            name: '',
-            customerEmail: '',
-            price: undefined,
-            duration: '5',
-        });
-        setEmailCheck({ status: 'idle' });
-    }
-  }, [isOpen, form]);
-
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Manual Item</DialogTitle>
-          <DialogDescription>
-            Enter a name and price for a custom item to add to the cart.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Item Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Custom T-Shirt" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="customerEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer Email (Optional)</FormLabel>
-                  <div className="flex items-end gap-2">
-                    <FormControl className="flex-grow">
-                        <Input
-                            type="email"
-                            placeholder="customer@example.com"
-                            {...field}
-                        />
-                    </FormControl>
-                    {emailCheck.status === 'idle' && (
-                        <Button type="button" variant="outline" size="sm" onClick={handleCheckEmail} disabled={isVerifying}>
-                            {isVerifying ? 'Checking...' : 'Check'}
-                        </Button>
-                    )}
-                    {emailCheck.status === 'checking' && (
-                        <Button type="button" variant="outline" size="sm" disabled>Checking...</Button>
-                    )}
-                    {emailCheck.status === 'verified' && (
-                       <Button type="button" variant="ghost" size="icon" className="text-green-500" disabled><Users className="h-4 w-4" /></Button>
-                    )}
-                    {emailCheck.status === 'not_found' && (
-                        <Button type="button" variant="secondary" size="sm" onClick={handleAddAccountInstructions}>Add</Button>
-                    )}
-                  </div>
-                  <FormDescription>
-                    {emailCheck.status === 'idle' && "Assign loyalty points for this sale."}
-                    {emailCheck.status === 'verified' && <span className="text-green-600">{emailCheck.message}</span>}
-                    {emailCheck.status === 'not_found' && <span className="text-destructive">{emailCheck.message}</span>}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="0.00" step="0.01" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Auto-delete after</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Set expiration time" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="5">5 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="1440">24 hours</SelectItem>
-                      <SelectItem value="2880">48 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">
-                Add to Cart
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ExpirationTimer({ expiresAt }: { expiresAt: number }) {
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-
-  useEffect(() => {
-    // Setting state in useEffect ensures this only runs on the client,
-    // avoiding server/client mismatch during hydration.
-    setTimeLeft(expiresAt - Date.now());
-    const timer = setInterval(() => {
-      setTimeLeft(expiresAt - Date.now());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [expiresAt]);
-
-  if (timeLeft === null) return null;
-  if (timeLeft <= 0) {
-    return <p className="text-xs text-red-500">Expired</p>;
-  }
-
-  const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-  const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
-  const seconds = Math.floor((timeLeft / 1000) % 60);
-  
-  return (
-    <p className="text-xs text-muted-foreground">
-      Expires in: {hours > 0 && `${hours}h `}{minutes > 0 && `${minutes}m `}{seconds < 10 ? `0${seconds}`: seconds}s
-    </p>
-  );
-}
+// --- MAIN PAGE ---
 
 export default function PosPage() {
-  const [password, setPassword] = useState("");
   const { toast } = useToast();
-  
+  const [password, setPassword] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<any[]>([]);
   const [currentTab, setCurrentTab] = useState("pos");
   const isMobile = useIsMobile();
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
   const [managingProduct, setManagingProduct] = useState<Product | null>(null);
   const [selectingProduct, setSelectingProduct] = useState<Product | null>(null);
 
-  // Stripe Terminal State
-  const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [reader, setReader] = useState<Reader | null>(null);
-  const [readers, setReaders] = useState<Reader[]>([]);
-  const [readerStatus, setReaderStatus] = useState<ReaderStatus>('idle');
-  const [checkoutStep, setCheckoutStep] = useState<'idle' | 'collecting' | 'processing'>('idle');
-  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [readerStatus, setReaderStatus] = useState('idle');
   
   const { firestore, auth, user, isUserLoading } = useFirebase();
 
-  // Queries
   const ordersQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, "orders"), orderBy("createdAt", "desc")) : null, [firestore, user]);
   const usersQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, "users")) : null, [firestore, user]);
   const complaintsQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, "complaints"), orderBy("createdAt", "desc")) : null, [firestore, user]);
   const reviewsQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, "reviews"), orderBy("createdAt", "desc")) : null, [firestore, user]);
 
-  // Data fetching
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
   const { data: users, isLoading: usersLoading } = useCollection<UserAccount>(usersQuery);
   const { data: complaints, isLoading: complaintsLoading } = useCollection<Complaint>(complaintsQuery);
   const { data: reviews, isLoading: reviewsLoading } = useCollection<Review>(reviewsQuery);
   
-  const newOrdersCount = useMemo(() => orders?.filter(o => o.status === 'new').length || 0, [orders]);
-
-  const [twentyFourHoursAgo, setTwentyFourHoursAgo] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const d = new Date();
-    d.setHours(d.getHours() - 24);
-    setTwentyFourHoursAgo(d);
-  }, []);
-
-  const newAccountsCount = useMemo(() => {
-    if (!users || !twentyFourHoursAgo) return 0;
-    return users.filter(u => {
-      try {
-        if (!u.registrationDate) return false;
-        const regDate = new Date(u.registrationDate);
-        return regDate > twentyFourHoursAgo;
-      } catch (e) {
-        return false;
-      }
-    }).length;
-  }, [users, twentyFourHoursAgo]);
-
-  const newComplaintsCount = useMemo(() => complaints?.filter(c => c.status === 'new').length || 0, [complaints]);
-
-  const newReviewsCount = useMemo(() => {
-      if (!reviews || !twentyFourHoursAgo) return 0;
-      return reviews.filter(review => {
-          try {
-              const reviewDate = review.createdAt?.seconds ? new Date(review.createdAt.seconds * 1000) : null;
-              return reviewDate && reviewDate > twentyFourHoursAgo;
-          } catch(e) {
-              return false;
-          }
-      }).length;
-  }, [reviews, twentyFourHoursAgo]);
-
-  const tabs = [
-    { value: 'pos', label: 'Point of Sale', count: 0, icon: ShoppingCart },
-    { value: 'notifications', label: 'Notifications', count: newOrdersCount, icon: Bell },
-    { value: 'shipping', label: 'Shipping', count: 0, icon: Send },
-    { value: 'accounts', label: 'Accounts', count: newAccountsCount, icon: Users },
-    { value: 'complaints', label: 'Complaints', count: newComplaintsCount, icon: MessageSquare },
-    { value: 'reviews', label: 'Reviews', count: newReviewsCount, icon: StarIcon },
-  ];
-
-
-  // Initialize Stripe Terminal
-  useEffect(() => {
-    if (user) {
-      const initialize = async () => {
-        const StripeTerminal = await loadStripeTerminal();
-        if (!StripeTerminal) {
-            console.error("Stripe Terminal failed to load");
-            return;
-        }
-        const term = StripeTerminal.create({
-          onFetchConnectionToken: async () => {
-            const response = await fetch('/api/terminal', { method: 'POST', body: JSON.stringify({pathname: '/connection-token'}) });
-            const { secret } = await response.json();
-            return secret;
-          },
-          onUnexpectedReaderDisconnect: () => {
-            setReader(null);
-            setReaderStatus('idle');
-            toast({ variant: 'destructive', title: 'Reader Disconnected', description: 'The card reader was disconnected unexpectedly.' });
-          },
-        });
-        setTerminal(term);
-      };
-      initialize();
-    }
-  }, [user, toast]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-        setCart(currentCart => {
-            const now = Date.now();
-            let itemsRemoved = false;
-            const removedItemNames: string[] = [];
-            
-            const newCart = currentCart.filter(item => {
-                if (item.expiresAt && now > item.expiresAt) {
-                    removedItemNames.push(item.name);
-                    itemsRemoved = true;
-                    return false;
-                }
-                return true;
-            });
-
-            if (itemsRemoved) {
-                 toast({
-                    variant: "destructive",
-                    title: "Item Expired",
-                    description: `Manually added item(s) "${removedItemNames.join(', ')}" expired and were removed from the cart.`,
-                });
-            }
-
-            return newCart;
-        });
-    }, 5000); 
-
-    return () => clearInterval(interval);
-  }, [toast]);
-
-  const discoverReaders = async () => {
-    if (!terminal) return;
-    setIsDiscovering(true);
-    setReaderStatus('discovering');
-    try {
-      const discoverResult = await terminal.discoverReaders();
-      if (discoverResult.error) {
-        throw new Error(discoverResult.error.message);
-      }
-      setReaders(discoverResult.discoveredReaders);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Reader Discovery Failed', description: e.message });
-    } finally {
-      setIsDiscovering(false);
-    }
-  };
-
-  const connectToReader = async (selectedReader: Reader) => {
-    if (!terminal) return;
-    setReaderStatus('connecting');
-    try {
-      const connectResult = await terminal.connectReader(selectedReader);
-      if (connectResult.error) {
-        throw new Error(connectResult.error.message);
-      }
-      setReader(connectResult.reader);
-      setReaderStatus('connected');
-      toast({ title: 'Reader Connected', description: `Connected to ${connectResult.reader.label}` });
-      setReaders([]); 
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Connection Failed', description: e.message });
-      setReaderStatus('idle');
-    }
-  };
-
-  async function loadProducts(silent = false) {
-    if (!silent) setIsSyncing(true);
+  async function loadProducts() {
+    setIsSyncing(true);
     setIsLoadingProducts(true);
     try {
-      const fetchedProducts = await fetchProductsAction();
-      setProducts(fetchedProducts);
-      if (!silent) toast({ title: "Sync Complete", description: "Product catalog updated from Stripe." });
-    } catch (e) {
-      if (!silent) toast({ variant: "destructive", title: "Sync Failed", description: "Could not fetch latest products." });
+      const fetched = await fetchProductsAction();
+      setProducts(fetched);
     } finally {
       setIsLoadingProducts(false);
       setIsSyncing(false);
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      loadProducts(true);
-    }
-  }, [user]);
-
+  useEffect(() => { if (user) loadProducts(); }, [user]);
 
   const handleLogin = async () => {
     if (password === "080808" && auth) {
       try {
         await signInAnonymously(auth);
-        toast({ title: "Access Granted", description: "Welcome to the POS system." });
+        toast({ title: "Access Granted" });
       } catch (error) {
-        console.error("Anonymous sign-in failed:", error);
-        toast({ variant: "destructive", title: "Authentication Failed", description: "Could not sign in." });
+        toast({ variant: "destructive", title: "Error", description: "Sign-in failed." });
       }
     } else {
-      toast({ variant: "destructive", title: "Access Denied", description: "Incorrect password." });
+      toast({ variant: "destructive", title: "Denied", description: "Wrong password." });
     }
-  };
-
-  const handleManualItemSubmit = (values: z.infer<typeof manualItemSchema>) => {
-    const { name, price, duration, customerEmail } = values;
-    const cartItemId = `manual-${name}-${Date.now()}`;
-    
-    const durationMinutes = parseInt(duration || '5', 10);
-    const expiresAt = Date.now() + durationMinutes * 60 * 1000;
-
-    const durationLabelMap: { [key: string]: string } = {
-        '5': '5 minutes',
-        '30': '30 minutes',
-        '1440': '24 hours',
-        '2880': '48 hours',
-    };
-
-    setCart((prevCart) => [
-      ...prevCart,
-      {
-        id: cartItemId,
-        name,
-        price,
-        quantity: 1,
-        productId: 'manual', 
-        color: 'N/A',
-        size: 'N/A',
-        expiresAt,
-        customerEmail: customerEmail || undefined,
-      },
-    ]);
-    toast({
-        title: "Manual Item Added",
-        description: `${name} will be removed from cart in ${durationLabelMap[duration || '5']}.`,
-    });
   };
 
   const addToCart = (product: Product, color: string, size: string) => {
     const cartItemId = `${product.id}-${color}-${size}`;
-    const cartItemName = `${product.name} (${color} / ${size})`;
-
-    setCart((prevCart) => {
-        const existingItem = prevCart.find(item => item.id === cartItemId);
-        if (existingItem) {
-            return prevCart.map(item =>
-                item.id === cartItemId
-                    ? { ...item, quantity: item.quantity + 1 }
-                    : item
-            );
+    setCart(prev => {
+        const existing = prev.find(i => i.id === cartItemId);
+        if (existing) {
+            return prev.map(i => i.id === cartItemId ? { ...i, quantity: i.quantity + 1 } : i);
         }
-        return [
-            ...prevCart,
-            {
-                id: cartItemId,
-                name: cartItemName,
-                price: product.price,
-                quantity: 1,
-                productId: product.id,
-                color: color,
-                size: size,
-            },
-        ];
+        return [...prev, {
+            id: cartItemId,
+            name: `${product.name} (${color}/${size})`,
+            price: product.price,
+            quantity: 1,
+            productId: product.id,
+            color,
+            size
+        }];
     });
-    toast({ title: "Added to cart", description: `${cartItemName} added.` });
+    toast({ title: "Added", description: product.name });
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart((prevCart) => prevCart.filter(item => item.id !== itemId));
-  };
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const clearCart = () => {
-    setCart([]);
-    toast({ title: "Cart Cleared" });
-  };
-
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  const handleTerminalCheckout = async () => {
-    if (!terminal || !reader || total === 0 || !firestore) return;
-  
-    setCheckoutStep('collecting');
-    try {
-      const intentRes = await fetch('/api/terminal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Math.round(total * 100), pathname: '/payment-intent' }),
-      });
-      const { client_secret, error: intentError } = await intentRes.json();
-      if (intentError) throw new Error(intentError);
-  
-      const collectResult = await terminal.collectPaymentMethod(client_secret);
-      if (collectResult.error) throw new Error(collectResult.error.message);
-  
-      setCheckoutStep('processing');
-      const processResult = await terminal.processPayment(collectResult.paymentIntent);
-      if (processResult.error) throw new Error(processResult.error.message);
-  
-      if (processResult.paymentIntent.status === 'succeeded') {
-        
-        for (const item of cart) {
-          if (item.productId === 'manual' && item.customerEmail) {
-            const pointsEarned = Math.floor(item.price * item.quantity);
-            const usersRef = collection(firestore, 'users');
-            const q = query(usersRef, where("email", "==", item.customerEmail));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-              querySnapshot.forEach(async (userDoc) => {
-                const userRef = doc(firestore, 'users', userDoc.id);
-                await updateDoc(userRef, {
-                  loyaltyPoints: increment(pointsEarned)
-                });
-                toast({
-                  title: "Loyalty Points Awarded",
-                  description: `${pointsEarned} points awarded to ${item.customerEmail}.`
-                });
-              });
-            }
-          }
-        }
-
-        const inventoryUpdates = cart
-          .filter(item => item.productId !== 'manual') 
-          .map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            size: item.size,
-            color: item.color,
-        }));
-        
-        await fetch('/api/inventory', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ updates: inventoryUpdates, operation: 'decrement' }),
-        });
-        
-        toast({ title: "Payment Successful", description: `Total: ${formatPrice(total)}` });
-        setCart([]);
-        loadProducts(true); 
-      }
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Payment Failed', description: e.message });
-    } finally {
-      setCheckoutStep('idle');
-    }
-  };
-
-  const pageIsLoading = isLoadingProducts || ordersLoading || usersLoading || complaintsLoading || reviewsLoading;
-
-  if (isUserLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>Loading POS...</p>
-      </div>
-    );
-  }
+  if (isUserLoading) return <div className="p-20 text-center">Loading Admin...</div>;
 
   if (!user) {
     return (
-      <div className="bg-gray-100 dark:bg-gray-900 flex min-h-[calc(100vh-200px)] items-center justify-center">
-        <div className="w-full max-sm space-y-6 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-          <h1 className="text-center text-2xl font-bold text-gray-800 dark:text-gray-200">POS Admin Access</h1>
-          <Input
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            className="dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
-          />
-          <Button onClick={handleLogin} className="w-full">
-            <LogIn className="mr-2 h-4 w-4" />
-            Login
-          </Button>
+      <div className="flex h-screen items-center justify-center bg-muted/30">
+        <div className="w-full max-w-sm p-8 bg-background border rounded-xl shadow-xl space-y-6">
+          <h1 className="text-center text-2xl font-bold">POS Admin</h1>
+          <Input type="password" placeholder="Passcode" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <Button onClick={handleLogin} className="w-full"><LogIn className="mr-2 h-4 w-4" /> Enter POS</Button>
         </div>
       </div>
     );
   }
 
-
-  if (pageIsLoading && !isSyncing) {
-    return (
-        <div className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 lg:p-8">
-            <div className="flex justify-between items-center mb-6">
-                <Skeleton className="h-9 w-64 bg-gray-200 dark:bg-gray-700" />
-            </div>
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-                <div className="md:col-span-2 space-y-4">
-                    <Skeleton className="h-12 w-full bg-gray-200 dark:bg-gray-700" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-                        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-36 w-full bg-gray-200 dark:bg-gray-700" />)}
-                    </div>
-                </div>
-                <div>
-                    <Skeleton className="h-12 w-1/2 mb-4 bg-gray-200 dark:bg-gray-700" />
-                    <Skeleton className="h-96 w-full bg-gray-200 dark:bg-gray-700" />
-                </div>
-            </div>
-        </div>
-    )
-  }
-
   return (
-    <div className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-[calc(100vh-148px)]">
-      <Tabs defaultValue="pos" value={currentTab} onValueChange={setCurrentTab} className="h-full">
-        <div className="p-4 lg:px-8 border-b border-gray-200 dark:border-gray-700">
+    <div className="bg-muted/30 min-h-screen">
+      <Tabs defaultValue="pos" value={currentTab} onValueChange={setCurrentTab}>
+        <div className="p-4 lg:px-8 bg-background border-b shadow-sm sticky top-0 z-10">
           <header className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl lg:text-3xl font-bold">In-Store Point of Sale</h1>
-              <Button size="sm" variant="outline" onClick={() => loadProducts()} disabled={isSyncing} className={cn(isSyncing && "animate-pulse")}>
-                <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} /> {isSyncing ? "Syncing..." : "Sync Stripe"}
+              <h1 className="text-xl font-bold">POS Terminal</h1>
+              <Button size="sm" variant="outline" onClick={() => loadProducts()} disabled={isSyncing}>
+                <RefreshCw className={cn("h-3 w-3 mr-2", isSyncing && "animate-spin")} /> Sync
               </Button>
             </div>
-            <div className="flex items-center gap-4 text-sm">
-                <span className={cn("font-semibold", readerStatus === 'connected' ? 'text-green-600' : 'text-gray-500 dark:text-gray-400')}>
-                  {reader ? reader.label : 'No Reader'}
-                </span>
-                {readerStatus === 'connected' ? <Wifi className="h-5 w-5 text-green-600" /> : <WifiOff className="h-5 w-5 text-gray-500 dark:text-gray-400" />}
+            <div className="flex items-center gap-4 text-xs font-medium opacity-70">
+                <span>{reader ? reader.label : 'Offline'}</span>
+                {reader ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4" />}
             </div>
           </header>
-          {isMobile ? (
-             <Select value={currentTab} onValueChange={setCurrentTab}>
-               <SelectTrigger className="w-full mt-4">
-                 <SelectValue placeholder="Select a page" />
-               </SelectTrigger>
-               <SelectContent>
-                 {tabs.map((tab) => (
-                   <SelectItem key={tab.value} value={tab.value}>
-                     <div className="flex items-center gap-2">
-                       <tab.icon className="h-4 w-4" />
-                       <span>{tab.label}</span>
-                       {tab.count > 0 && <TabBadge count={tab.count} />}
-                     </div>
-                   </SelectItem>
-                 ))}
-               </SelectContent>
-             </Select>
-          ) : (
-            <ScrollArea orientation="horizontal" className="w-full">
-                <TabsList className="mt-4">
-                    {tabs.map((tab) => (
-                        <TabsTrigger key={tab.value} value={tab.value} className="flex items-center">
-                            <tab.icon className="mr-2 h-4 w-4" />
-                            {tab.label}
-                            <TabBadge count={tab.count} />
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
-            </ScrollArea>
-          )}
+          
+          <ScrollArea orientation="horizontal" className="mt-4">
+            <TabsList>
+                <TabsTrigger value="pos"><ShoppingCart className="mr-2 h-4 w-4" /> POS</TabsTrigger>
+                <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" /> Orders <TabBadge count={orders?.filter(o => o.status === 'new').length || 0} /></TabsTrigger>
+                <TabsTrigger value="shipping"><Send className="mr-2 h-4 w-4" /> Shipping</TabsTrigger>
+                <TabsTrigger value="accounts"><Users className="mr-2 h-4 w-4" /> Accounts</TabsTrigger>
+                <TabsTrigger value="complaints"><MessageSquare className="mr-2 h-4 w-4" /> Issues <TabBadge count={complaints?.filter(c => c.status === 'new').length || 0} /></TabsTrigger>
+                <TabsTrigger value="reviews"><StarIcon className="mr-2 h-4 w-4" /> Reviews</TabsTrigger>
+            </TabsList>
+          </ScrollArea>
         </div>
 
-        <TabsContent value="pos" className="m-0">
-          <div className="p-4 lg:p-8 pt-6">
+        <TabsContent value="pos" className="container py-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <main className="lg:col-span-2 rounded-lg border bg-white dark:bg-gray-800 shadow-sm">
-                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-semibold">Products</h2>
-                    <Button onClick={() => setIsManualEntryOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Manual Item
-                    </Button>
+              <div className="lg:col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map(p => (
+                    <div key={p.id} className="p-4 bg-background border rounded-lg hover:shadow-md transition-shadow group relative">
+                        <Button variant="ghost" size="icon" className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-7 w-7" onClick={() => setManagingProduct(p)}>
+                            <Settings2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <h3 className="font-bold text-sm truncate">{p.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">{formatPrice(p.price)}</p>
+                        <Button size="sm" className="w-full mt-4 bg-blue-600 hover:bg-blue-700" onClick={() => setSelectingProduct(p)}>Select</Button>
+                    </div>
+                  ))}
                 </div>
-                <ScrollArea className="h-[calc(100vh-420px)]">
-                  {products.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-                      {products.map((product) => {
-                        const totalStock = product.stock.reduce((sum, item) => sum + item.quantity, 0);
-                        const isOutOfStock = totalStock <= 0;
-                        const weights = Array.from(new Set(product.stock.map(s => s.weight || product.weight)));
-                        const weightDisplay = weights.length > 1 
-                            ? `${Math.min(...weights)}-${Math.max(...weights)}` 
-                            : weights[0]?.toFixed(1) || (product.weight ? product.weight.toFixed(1) : '0.0');
-
-                        return (
-                          <div key={product.id} className="rounded-lg border bg-gray-50 dark:bg-gray-700 p-3 flex flex-col justify-between transition-shadow hover:shadow-md relative group">
-                            <button 
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
-                              onClick={() => setManagingProduct(product)}
-                              title="Manage stock levels"
-                            >
-                              <Settings2 className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                            <div className="pr-6">
-                              <h3 className="font-semibold truncate">{product.name}</h3>
-                              <div className="space-y-1 mt-1">
-                                  <p className="text-xs">
-                                  <span className={cn("font-medium", isOutOfStock ? "text-red-500" : "text-gray-500 dark:text-gray-400")}>
-                                      {totalStock} in stock
-                                  </span>
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                      <Weight className="h-3 w-3" /> {weightDisplay} oz
-                                  </p>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => setSelectingProduct(product)}
-                              size="sm"
-                              className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white"
-                              disabled={isOutOfStock}
-                            >
-                              {isOutOfStock ? "Out of Stock" : "Add to Cart"}
-                            </Button>
-                          </div>
-                        );
-                      })}
+              </div>
+              <div className="space-y-4">
+                <div className="p-6 bg-background border rounded-xl shadow-lg sticky top-32">
+                    <h2 className="text-lg font-bold mb-4 flex items-center justify-between">
+                        Cart
+                        {cart.length > 0 && <Button variant="ghost" size="sm" onClick={() => setCart([])} className="h-7 text-xs">Clear</Button>}
+                    </h2>
+                    <ScrollArea className="h-[300px]">
+                        {cart.length === 0 ? <p className="text-center py-10 text-muted-foreground italic text-sm">Cart is empty</p> : (
+                            <ul className="space-y-3">
+                                {cart.map(i => (
+                                    <li key={i.id} className="flex justify-between text-sm border-b pb-2">
+                                        <div className="flex-1 pr-4">
+                                            <p className="font-medium truncate">{i.name}</p>
+                                            <p className="text-xs text-muted-foreground">Qty: {i.quantity}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold">{formatPrice(i.price * i.quantity)}</p>
+                                            <button onClick={() => setCart(prev => prev.filter(item => item.id !== i.id))} className="text-[10px] text-destructive underline">Remove</button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </ScrollArea>
+                    <div className="pt-4 border-t mt-4">
+                        <div className="flex justify-between font-bold text-xl mb-6">
+                            <span>Total</span>
+                            <span>{formatPrice(total)}</span>
+                        </div>
+                        <Button className="w-full h-12 text-lg font-bold" disabled={cart.length === 0}>
+                            <CreditCard className="mr-2 h-5 w-5" /> Charge Customer
+                        </Button>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                      <Search className="h-12 w-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold">No Products Found in Stripe</h3>
-                      <p className="text-sm text-muted-foreground mt-2 max-w-xs">
-                        Ensure your Stripe Secret Key is correct and you have products with active prices in your dashboard.
-                      </p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </main>
-              <aside>
-                <div className="rounded-lg border bg-white dark:bg-gray-800 shadow-sm">
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">Cart</h2>
-                    {cart.length > 0 && (
-                      <Button variant="ghost" size="sm" onClick={clearCart} className="text-muted-foreground hover:text-destructive h-8 px-2">
-                        <XCircle className="h-4 w-4 mr-1" /> Clear
-                      </Button>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    {cart.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <ShoppingCart className="mx-auto h-12 w-12" />
-                        <p className="mt-2">No items in cart</p>
-                      </div>
-                    ) : (
-                      <ScrollArea className="h-[calc(100vh-600px)]">
-                        <ul className="space-y-3 pr-4">
-                          {cart.map((item) => (
-                            <li key={item.id} className="flex justify-between items-center text-sm gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="truncate font-medium">{item.name} x{item.quantity}</p>
-                                {item.expiresAt && <ExpirationTimer expiresAt={item.expiresAt} />}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium whitespace-nowrap">{formatPrice(item.price * item.quantity)}</span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => removeFromCart(item.id)}
-                                  title="Remove item"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </ScrollArea>
-                    )}
-                  </div>
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between font-bold text-lg mb-4">
-                      <span>Total</span>
-                      <span>{formatPrice(total)}</span>
-                    </div>
-                    <div className="space-y-2">
-                      <Button onClick={handleTerminalCheckout} className="w-full" disabled={cart.length === 0 || !reader || checkoutStep !== 'idle'}>
-                         <CreditCard className="mr-2 h-4 w-4" />
-                         {checkoutStep === 'idle' && 'Charge Customer'}
-                         {checkoutStep === 'collecting' && 'Waiting for card...'}
-                         {checkoutStep === 'processing' && 'Processing...'}
-                      </Button>
-                      <Button onClick={discoverReaders} variant="outline" className="w-full dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700" disabled={isDiscovering}>
-                        {isDiscovering ? 'Discovering...' : 'Discover Readers'}
-                      </Button>
-                    </div>
-                  </div>
                 </div>
-              </aside>
+              </div>
             </div>
-          </div>
         </TabsContent>
 
-        <TabsContent value="notifications" className="m-0">
+        <TabsContent value="notifications" className="container py-6">
           <NotificationsTab orders={orders} isLoading={ordersLoading}/>
         </TabsContent>
-         <TabsContent value="shipping" className="m-0">
+        <TabsContent value="shipping" className="container py-6">
           <ShippingTab />
         </TabsContent>
-         <TabsContent value="accounts" className="m-0">
+        <TabsContent value="accounts" className="container py-6">
           <AccountsTab users={users} isLoading={usersLoading} />
         </TabsContent>
-        <TabsContent value="complaints" className="m-0">
+        <TabsContent value="complaints" className="container py-6">
           <ComplaintsTab complaints={complaints} isLoading={complaintsLoading} />
         </TabsContent>
-        <TabsContent value="reviews" className="m-0">
+        <TabsContent value="reviews" className="container py-6">
           <ReviewsTab reviews={reviews} isLoading={reviewsLoading} />
         </TabsContent>
       </Tabs>
-      
-      <AlertDialog open={readers.length > 0} onOpenChange={() => setReaders([])}>
-        <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="dark:text-gray-200">Discovered Readers</AlertDialogTitle>
-            <AlertDialogDescription className="dark:text-gray-400">
-              Select a reader to connect to for this transaction.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="max-h-60 overflow-y-auto">
-            {readers.map(r => (
-              <div
-                key={r.id}
-                onClick={() => connectToReader(r)}
-                className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md cursor-pointer"
-              >
-                {r.label} ({r.id})
-              </div>
-            ))}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">Cancel</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-       <ManualEntryDialog
-        isOpen={isManualEntryOpen}
-        onOpenChange={setIsManualEntryOpen}
-        onManualItemSubmit={handleManualItemSubmit}
-      />
 
       {managingProduct && (
           <ManageProductDialog 
             product={managingProduct} 
             isOpen={!!managingProduct} 
             onOpenChange={(open) => !open && setManagingProduct(null)}
-            onUpdate={() => loadProducts(true)}
+            onUpdate={loadProducts}
           />
       )}
 

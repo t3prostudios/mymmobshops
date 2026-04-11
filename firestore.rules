@@ -1,104 +1,73 @@
 /**
- * VogueVerse Firestore Security Rules
- *
- * CORE PHILOSOPHY:
- * This ruleset implements a robust, owner-centric security model supplemented by a Database Access 
- * Control (DBAC) system for administrative privileges.
+ * VogueVerse Firestore Security Rules - FORCE ADMIN ACCESS
  */
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /** @description Checks if the authenticated user has administrative privileges. */
-    function isAdmin() {
-      return isSignedIn() && (
+    // --- Core Authorization ---
+    
+    function isHardcodedAdmin() {
+      return request.auth != null && (
         request.auth.uid == 'bRhr6ftn19SkI8rOlsUqAET81D12' || 
-        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2' ||
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2'
       );
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(ownerIdField) {
-      return isSignedIn() && resource != null && resource.data[ownerIdField] == request.auth.uid;
-    }
-
-    function isNewOwner(ownerIdField) {
-      return isSignedIn() && request.resource.data[ownerIdField] == request.auth.uid;
-    }
-
-    function isUnchanged(field) {
-      return request.resource.data[field] == resource.data[field];
     }
 
     // --- Collection Rules ---
 
-    match /roles_admin/{adminUid} {
-      allow get: if isOwner(adminUid);
-      allow list, create, update, delete: if false;
-    }
-
+    // USERS: Admin can see all, users see self
     match /users/{userId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if (isOwner(userId) && isUnchanged('id')) || isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if (request.auth != null && request.auth.uid == userId) || isHardcodedAdmin();
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if (request.auth != null && request.auth.uid == userId) || isHardcodedAdmin();
+      allow delete: if isHardcodedAdmin();
     }
 
+    // PRODUCTS: Public read, Admin write
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isHardcodedAdmin();
     }
 
+    // ORDERS: Admin full access, Guest can create
     match /orders/{orderId} {
-      allow get, list: if isExistingOwner('userId') || isAdmin();
-      allow create: if true; // Allow guest checkout creation
-      allow update, delete: if isAdmin();
+      allow read, write: if isHardcodedAdmin();
+      allow create: if true; 
     }
 
+    // COMPLAINTS: Admin full access, Public can create
     match /complaints/{id} {
+      allow read, write: if isHardcodedAdmin();
       allow create: if true;
-      allow read, update, delete: if isAdmin();
     }
 
+    // REVIEWS: Admin full access, Public can create
     match /reviews/{id} {
+      allow read, write: if isHardcodedAdmin();
       allow create: if true;
-      allow read, update, delete: if isAdmin();
     }
 
+    // CARTS: Owner or Admin
     match /carts/{cartId} {
-      allow get, list: if isExistingOwner('ownerId') || isAdmin();
-      allow create: if isNewOwner('ownerId');
-      allow update: if (isExistingOwner('ownerId') && isUnchanged('ownerId')) || isAdmin();
-      allow delete: if isExistingOwner('ownerId') || isAdmin();
+      allow read, write: if isHardcodedAdmin() || (request.auth != null && resource.data.ownerId == request.auth.uid);
+      allow create: if request.auth != null;
     }
 
     match /carts/{cartId}/cartItems/{cartItemId} {
-      allow get, list: if isExistingOwner('cartOwnerId') || isAdmin();
-      allow create: if isNewOwner('cartOwnerId');
-      allow update: if (isExistingOwner('cartOwnerId') && isUnchanged('cartOwnerId')) || isAdmin();
-      allow delete: if isExistingOwner('cartOwnerId') || isAdmin();
+      allow read, write: if isHardcodedAdmin() || (request.auth != null && request.resource.data.cartOwnerId == request.auth.uid);
     }
 
+    // SUBSCRIPTIONS
     match /emailSubscriptions/{subscriptionId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, write: if isHardcodedAdmin();
     }
     
-    // Catch-all for other collections
+    // CATCH-ALL
     match /{path=**} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow read, write: if isHardcodedAdmin();
     }
   }
 }
