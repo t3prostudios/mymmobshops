@@ -1,28 +1,23 @@
 
+'use client';
+
 import Image from 'next/image';
-import { getStripeProducts } from '@/lib/stripe';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import type { Image as ImageType } from '@/types';
+import placeholderData from '@/app/lib/placeholder-images.json';
 
-export default async function SocialProof() {
-  const allProducts = await getStripeProducts();
-  
-  const socialImages = allProducts.reduce((acc: ImageType[], product) => {
-    const allImages = [...product.images, ...(product.alternateImages || [])];
-    const productSocialImages = allImages.filter(img => img.id.startsWith('social-'));
-    return [...acc, ...productSocialImages];
-  }, []).slice(0, 4);
+export default function SocialProof() {
+  const socialImages = placeholderData.movement;
 
   return (
-    <section className="py-12 md:py-24 bg-background" style={{backgroundColor: 'hsl(0, 0%, 85%)'}}>
+    <section className="py-12 md:py-24 bg-background">
       <div className="container">
         <div className="mb-12 text-center">
           <h2 className="text-3xl font-headline tracking-tight sm:text-4xl md:text-5xl">The Movement in Action</h2>
           <p className="mt-3 max-w-md mx-auto text-muted-foreground sm:text-lg md:mt-4 md:text-xl">
-            See how our community styles their favorite pieces. Tag @M.M.O.B to be featured!
+            See how our community styles their favorite pieces and shares the message.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
@@ -38,11 +33,14 @@ export default async function SocialProof() {
                     className="aspect-square w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     data-ai-hint={image.hint}
                   />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">{image.author}</span>
+                  </div>
                 </div>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl p-0">
+              <DialogContent className="max-w-3xl p-0 overflow-hidden">
                 <DialogHeader className='sr-only'>
-                    <DialogTitle>Social media post by {image.author || '@vogueverse_style'}</DialogTitle>
+                    <DialogTitle>Social media post by {image.author}</DialogTitle>
                     <DialogDescription>{image.description}</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col md:flex-row">
@@ -52,13 +50,15 @@ export default async function SocialProof() {
                       alt={image.description}
                       width={800}
                       height={800}
-                      className="object-cover w-full h-full"
+                      className="object-cover w-full h-full aspect-square"
                     />
                   </div>
-                  <div className="p-6 md:w-1/3 flex flex-col">
-                    <h3 className="font-bold">{image.author || '@vogueverse_style'}</h3>
-                    <ScrollArea className="flex-grow mt-2 max-h-[calc(80vh-100px)]">
-                      <p className="text-sm text-muted-foreground pr-4">{image.description}</p>
+                  <div className="p-6 md:w-1/3 flex flex-col justify-center bg-card">
+                    <h3 className="font-bold text-primary">{image.author}</h3>
+                    <ScrollArea className="flex-grow mt-4">
+                      <p className="text-sm italic leading-relaxed text-muted-foreground pr-4">
+                        "{image.description}"
+                      </p>
                     </ScrollArea>
                   </div>
                 </div>
@@ -68,7 +68,7 @@ export default async function SocialProof() {
         </div>
         <div className="mt-12 text-center">
           <Button asChild variant="outline">
-            <Link href="/movement">See More</Link>
+            <Link href="/movement">View All Stories</Link>
           </Button>
         </div>
       </div>
