@@ -79,7 +79,6 @@ export default function Header() {
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Link href="/create-your-look" className="transition-colors hover:text-foreground/80 text-foreground/60">Create Your Look</Link>
         </nav>
         
         <div className="md:hidden">
@@ -97,7 +96,6 @@ export default function Header() {
                 <nav className="grid gap-2 text-lg font-medium">
                     <Link href="/" className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary">Home</Link>
                     <Link href="/products" className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary">Shop</Link>
-                    <Link href="/create-your-look" className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary">Create Your Look</Link>
                 </nav>
                 </div>
             </SheetContent>
