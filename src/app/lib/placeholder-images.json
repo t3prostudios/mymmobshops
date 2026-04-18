@@ -3,28 +3,28 @@
   "movement": [
     {
       "id": "movement-1",
-      "url": "/social-1.jpeg",
+      "url": "/images/social-1.jpeg",
       "author": "@marcus_fit",
       "description": "The quality is unmatched. I feel empowered every time I wear my MMOB hoodie. It's more than just clothes; it's a mindset.",
       "hint": "man hoodie"
     },
     {
       "id": "movement-2",
-      "url": "/social-02.png",
+      "url": "/images/social-02.png",
       "author": "@sarah_styles",
       "description": "Finally found a brand that aligns with my values. Look good, feel good, do good. The joggers are incredibly comfortable!",
       "hint": "woman joggers"
     },
     {
       "id": "movement-3",
-      "url": "/social-003.png",
+      "url": "/images/social-003.png",
       "author": "@david_growth",
       "description": "Great fit and even better message. Highly recommended for anyone on a journey of self-improvement.",
       "hint": "athlete sweatshirt"
     },
     {
       "id": "movement-4",
-      "url": "/social-5.png",
+      "url": "/images/social-5.png",
       "author": "@community_first",
       "description": "The MMOB shop is a vibe. Love the community they're building in Sacramento. Best customer service ever!",
       "hint": "community fashion"
