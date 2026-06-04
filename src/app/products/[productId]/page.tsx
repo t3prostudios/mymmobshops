@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense, useRef, use } from "react";
 import { fetchProductByIdAction } from "@/lib/actions";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { formatPrice, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Star, MessageCircle, Loader2 } from "lucide-react";

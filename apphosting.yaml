@@ -5,3 +5,11 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+env:
+  - variable: SQUARE_ACCESS_TOKEN
+    secret: square_access_token
+  - variable: SQUARE_ENVIRONMENT
+    value: sandbox
+  - variable: SQUARE_LOCATION_ID
+    secret: square_location_id

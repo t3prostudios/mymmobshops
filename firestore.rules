@@ -11,7 +11,8 @@ service cloud.firestore {
     function isHardcodedAdmin() {
       return request.auth != null && (
         request.auth.uid == 'bRhr6ftn19SkI8rOlsUqAET81D12' || 
-        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2'
+        request.auth.uid == 'zPzGDMpSSLNVBXLKr7H7ab3bhJM2' ||
+        request.auth.uid == 'LPz0ZAPOOPTcI4KNpgOrFuK9ICb2'
       );
     }
 

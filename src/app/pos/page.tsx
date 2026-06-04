@@ -769,6 +769,194 @@ function ReviewsTab({ reviews, isLoading }: { reviews: Review[] | null, isLoadin
   )
 }
 
+function SquareSyncTab() {
+  const { toast } = useToast();
+  const [healthStatus, setHealthStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
+  const [healthDetails, setHealthDetails] = useState<any>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+  const [syncResults, setSyncResults] = useState<any>(null);
+  const [isDryRun, setIsDryRun] = useState(true);
+
+  const checkHealth = async () => {
+    setHealthStatus('checking');
+    try {
+      const res = await fetch('/api/square/health');
+      const data = await res.json();
+      if (data.status === 'success') {
+        setHealthStatus('connected');
+        setHealthDetails(data);
+      } else {
+        setHealthStatus('error');
+        setHealthDetails(data);
+      }
+    } catch (e: any) {
+      setHealthStatus('error');
+      setHealthDetails({ message: e.message || 'Failed to contact health check API' });
+    }
+  };
+
+  const runSync = async () => {
+    setSyncStatus('syncing');
+    try {
+      const res = await fetch(`/api/square/sync?dryRun=${isDryRun}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncStatus('done');
+        setSyncResults(data);
+        toast({
+          title: isDryRun ? "Dry-run Completed" : "Sync Completed",
+          description: `Successfully synced ${data.totalUpdatedCount} stock levels.`,
+        });
+      } else {
+        setSyncStatus('error');
+        setSyncResults(data);
+        toast({
+          variant: "destructive",
+          title: "Sync Failed",
+          description: data.error || "An unknown error occurred.",
+        });
+      }
+    } catch (e: any) {
+      setSyncStatus('error');
+      setSyncResults({ error: e.message || 'Sync failed.' });
+      toast({
+        variant: "destructive",
+        title: "Sync Failed",
+        description: e.message || "Failed to contact sync API.",
+      });
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-between items-center border-b pb-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <RefreshCw className="h-6 w-6 text-primary" />
+            Square Integration Bridge
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Synchronize item stock levels from your Square Catalog to Stripe metadata.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={checkHealth} disabled={healthStatus === 'checking'}>
+          <RefreshCw className={cn("h-4 w-4 mr-2", healthStatus === 'checking' && "animate-spin")} />
+          Check API Status
+        </Button>
+      </div>
+
+      {/* API Health Card */}
+      <div className="p-4 border rounded-lg bg-background shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+        <div>
+          <h3 className="font-semibold text-base">API Connection Status</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Validates your local `.env.local` credentials against the Square API.
+          </p>
+        </div>
+        <div className="flex justify-end items-center gap-2">
+          {healthStatus === 'checking' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+              Verifying credentials...
+            </span>
+          )}
+          {healthStatus === 'connected' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              <span className="h-2 w-2 rounded-full bg-green-500 mr-2" />
+              Connected (Location: {healthDetails?.locations?.[0]?.name || 'Default'})
+            </span>
+          )}
+          {healthStatus === 'error' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+              <XCircle className="h-3 w-3 mr-1.5" />
+              Disconnected: {healthDetails?.message || 'Check config'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Sync Controls */}
+      <div className="p-6 border rounded-lg bg-background shadow-sm space-y-4">
+        <div>
+          <h3 className="font-semibold text-lg">Inventory Stock Sync</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Matches products by exact Name, fetches their corresponding Square variation stock levels, and updates Stripe metadata.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="dryRunCheckbox"
+              checked={isDryRun}
+              onChange={(e) => setIsDryRun(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label htmlFor="dryRunCheckbox" className="text-sm font-medium select-none cursor-pointer">
+              Perform Dry-Run Only (Safe Preview)
+            </label>
+          </div>
+          <Button onClick={runSync} disabled={syncStatus === 'syncing' || healthStatus !== 'connected'} className="sm:ml-auto">
+            {syncStatus === 'syncing' ? 'Syncing...' : 'Sync Stock Levels'}
+          </Button>
+        </div>
+
+        {/* Sync Summary Results */}
+        {syncStatus === 'syncing' && (
+          <div className="text-center py-8">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground mt-2">Fetching catalog & calculating stock adjustments...</p>
+          </div>
+        )}
+
+        {syncStatus === 'done' && syncResults && (
+          <div className="mt-6 border-t pt-6 space-y-4">
+            <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+              <div>
+                <span className="text-xs uppercase font-bold tracking-wider text-muted-foreground">Mode</span>
+                <p className="text-sm font-semibold">{syncResults.dryRun ? 'Dry-Run (No changes made)' : 'Live Write'}</p>
+              </div>
+              <div>
+                <span className="text-xs uppercase font-bold tracking-wider text-muted-foreground">Updated Stock Counts</span>
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400">{syncResults.totalUpdatedCount} variations</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Sync Audit Log:</h4>
+              <ScrollArea className="max-h-[300px] border rounded-lg p-3 bg-muted/10">
+                {syncResults.syncLogs?.length > 0 ? (
+                  <div className="space-y-4">
+                    {syncResults.syncLogs.map((log: any, idx: number) => (
+                      <div key={idx} className="text-xs border-b pb-2 last:border-b-0">
+                        <p className="font-bold text-sm text-primary">{log.productName}</p>
+                        <div className="mt-1 space-y-1 pl-2">
+                          {log.updates.map((up: any, uIdx: number) => (
+                            <p key={uIdx} className="text-muted-foreground">
+                              Variation: <span className="font-semibold">{up.color} / {up.size}</span> 
+                              {' '} | Stock: <span className="line-through">{up.oldQty}</span> &rarr; <span className="font-bold text-green-600 dark:text-green-400">{up.newQty}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-4">All stock levels are already up to date with Square.</p>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // --- MAIN PAGE ---
 
 export default function PosPage() {
@@ -879,7 +1067,7 @@ export default function PosPage() {
             </div>
           </header>
           
-          <ScrollArea orientation="horizontal" className="mt-4">
+          <ScrollArea className="mt-4">
             <TabsList>
                 <TabsTrigger value="pos"><ShoppingCart className="mr-2 h-4 w-4" /> POS</TabsTrigger>
                 <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" /> Orders <TabBadge count={orders?.filter(o => o.status === 'new').length || 0} /></TabsTrigger>
@@ -887,6 +1075,7 @@ export default function PosPage() {
                 <TabsTrigger value="accounts"><Users className="mr-2 h-4 w-4" /> Accounts</TabsTrigger>
                 <TabsTrigger value="complaints"><MessageSquare className="mr-2 h-4 w-4" /> Issues <TabBadge count={complaints?.filter(c => c.status === 'new').length || 0} /></TabsTrigger>
                 <TabsTrigger value="reviews"><StarIcon className="mr-2 h-4 w-4" /> Reviews</TabsTrigger>
+                <TabsTrigger value="square"><RefreshCw className="mr-2 h-4 w-4" /> Square</TabsTrigger>
             </TabsList>
           </ScrollArea>
         </div>
@@ -959,6 +1148,9 @@ export default function PosPage() {
         </TabsContent>
         <TabsContent value="reviews" className="container py-6">
           <ReviewsTab reviews={reviews} isLoading={reviewsLoading} />
+        </TabsContent>
+        <TabsContent value="square" className="container py-6">
+          <SquareSyncTab />
         </TabsContent>
       </Tabs>
 

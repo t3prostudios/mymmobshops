@@ -3,14 +3,16 @@ import Stripe from 'stripe';
 import { allProducts as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
 
-const getStripeClient = () => {
+export const getStripeClient = () => {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) return null;
   return new Stripe(secretKey, {
-    apiVersion: '2023-10-16',
+    apiVersion: '2023-10-16' as any,
     typescript: true,
   });
 };
+
+export const stripe = getStripeClient() as Stripe;
 
 const colorHexMap: { [key: string]: string } = {
     'grey': '#808080',
