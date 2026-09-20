@@ -25,6 +25,7 @@ export const OrderNotificationInputSchema = z.object({
     price: z.number(),
   })).describe('An array of items in the order.'),
   total: z.number().describe('The total amount of the order.'),
+  taxAmount: z.number().optional().describe('The tax amount charged for the order.'),
 });
 export type OrderNotificationInput = z.infer<typeof OrderNotificationInputSchema>;
 

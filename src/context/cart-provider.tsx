@@ -4,6 +4,7 @@
 import { createContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import type { CartItem, Product, ProductVariant, ShippingAddress } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { calculateTax } from "@/lib/tax";
 
 export type Discount = {
   label: string;
@@ -30,13 +31,15 @@ const getShippingRate = (weightInOz: number, country: string): number => {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product, variant?: ProductVariant | Product['variants'][0], stockItem?: any, options?: { openCart?: boolean }) => void;
+  addToCart: (product: Product, variant?: ProductVariant | NonNullable<Product['variants']>[number], stockItem?: any, options?: { openCart?: boolean }) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   cartTotal: number;
   subtotal: number;
   shippingCost: number | null;
+  taxAmount: number;
+  taxRate: number;
   cartCount: number;
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
@@ -96,10 +99,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setLastPurchaseTimestamp(Date.now());
   };
 
-  const addToCart = (product: Product, variant?: ProductVariant | Product['variants'][0], stockItem?: any, options?: { openCart?: boolean }) => {
+  const addToCart = (product: Product, variant?: ProductVariant | NonNullable<Product['variants']>[number], stockItem?: any, options?: { openCart?: boolean }) => {
     const { openCart = true } = options || {};
 
-    const itemToAdd: Product & { variant?: ProductVariant | Product['variants'][0] } = { ...product };
+    const itemToAdd: Product & { variant?: ProductVariant | NonNullable<Product['variants']>[number] } = { ...product };
     let itemId = product.id;
     let itemName = product.name;
     let itemWeight = product.weight;
@@ -222,10 +225,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [subtotal, cartWeight, shippingAddress]);
 
+  const taxableAmount = useMemo(() => {
+    const amt = subtotal - appliedDiscountValue;
+    return amt > 0 ? amt : 0;
+  }, [subtotal, appliedDiscountValue]);
+
+  const { taxRate, taxAmount } = useMemo(() => {
+    if (subtotal === 0) return { taxRate: 0, taxAmount: 0 };
+    return calculateTax({
+      taxableAmount,
+      country: shippingAddress?.country,
+      state: shippingAddress?.state,
+    });
+  }, [taxableAmount, subtotal, shippingAddress]);
+
   const cartTotal = useMemo(() => {
-    const total = subtotal - appliedDiscountValue + (shippingCost || 0);
+    const total = subtotal - appliedDiscountValue + (shippingCost || 0) + taxAmount;
     return total > 0 ? total : 0;
-  }, [subtotal, appliedDiscountValue, shippingCost]);
+  }, [subtotal, appliedDiscountValue, shippingCost, taxAmount]);
   
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
@@ -240,6 +257,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         cartTotal,
         subtotal,
         shippingCost,
+        taxAmount,
+        taxRate,
         cartCount,
         isCartOpen,
         setIsCartOpen,

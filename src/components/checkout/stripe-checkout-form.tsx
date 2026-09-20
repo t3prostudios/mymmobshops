@@ -59,7 +59,7 @@ const formSchema = z.object({
 function CheckoutForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const { cartItems, cartTotal, clearCart, setShippingAddress } = useCart();
+  const { cartItems, cartTotal, taxAmount, taxRate, clearCart, setShippingAddress } = useCart();
   const stripe = useStripe();
   const elements = useElements();
   const { user } = useUser();
@@ -87,6 +87,7 @@ function CheckoutForm() {
   const watchCountry = form.watch('country');
   const watchState = form.watch('state');
   const watchCity = form.watch('city');
+  const watchPostalCode = form.watch('postalCode');
 
   useEffect(() => {
     if (deliveryMethod === 'shipping') {
@@ -94,11 +95,12 @@ function CheckoutForm() {
         country: watchCountry || '',
         state: watchState || '',
         city: watchCity || '',
+        postalCode: watchPostalCode || '',
       });
     } else {
       setShippingAddress(null);
     }
-  }, [deliveryMethod, watchCountry, watchState, watchCity, setShippingAddress]);
+  }, [deliveryMethod, watchCountry, watchState, watchCity, watchPostalCode, setShippingAddress]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
@@ -175,6 +177,8 @@ function CheckoutForm() {
             price: item.product.variant?.price ?? item.product.price,
           })),
           total: cartTotal,
+          taxAmount,
+          taxRate,
           createdAt: serverTimestamp(),
           status: 'new',
           shippingAddress: values.deliveryMethod === 'shipping' ? {
@@ -202,6 +206,7 @@ function CheckoutForm() {
               price: item.product.variant?.price ?? item.product.price,
             })),
             total: cartTotal,
+            taxAmount,
           };
           if (values.deliveryMethod === 'shipping') {
             notificationPayload.shippingAddress = {
@@ -222,7 +227,7 @@ function CheckoutForm() {
         if (user && firestore && !values.guestCheckout) {
           const userDocRef = doc(firestore, 'users', user.uid);
           
-          const profileData: Partial<UserAccount> = {
+          const profileData: Record<string, any> = {
             loyaltyPoints: increment(Math.floor(cartTotal)),
             phone: values.phone || undefined,
           };

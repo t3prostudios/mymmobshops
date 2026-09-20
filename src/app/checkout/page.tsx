@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Info } from 'lucide-react';
 
 export default function CheckoutPage() {
-  const { cartItems, cartTotal, cartCount, subtotal, shippingCost } = useCart();
+  const { cartItems, cartTotal, cartCount, subtotal, shippingCost, taxAmount, taxRate } = useCart();
 
   if (cartCount === 0) {
     return (
@@ -74,6 +74,10 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-muted-foreground">
                 <p>Shipping</p>
                 <p>{shippingCost === null ? 'Calculated at next step' : (shippingCost > 0 ? formatPrice(shippingCost) : 'Free')}</p>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <p>Estimated Tax {taxRate > 0 ? `(${(taxRate * 100).toFixed(2)}%)` : ''}</p>
+                <p>{taxAmount > 0 ? formatPrice(taxAmount) : (shippingCost === null ? 'Calculated at next step' : formatPrice(0))}</p>
               </div>
               <div className="border-t my-2"></div>
               <div className="flex justify-between font-bold text-lg">

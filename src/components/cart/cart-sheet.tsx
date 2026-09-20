@@ -20,6 +20,8 @@ export default function CartSheet({ children }: { children: React.ReactNode }) {
     cartTotal,
     subtotal,
     shippingCost,
+    taxAmount,
+    taxRate,
     removeFromCart,
     isCartOpen,
     setIsCartOpen,
@@ -130,6 +132,11 @@ export default function CartSheet({ children }: { children: React.ReactNode }) {
                   <span className="text-xs">
                     {shippingCost === null ? 'Calculated at checkout' : (shippingCost > 0 ? formatPrice(shippingCost) : 'Free')}
                   </span>
+                </div>
+
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Estimated Tax {taxRate > 0 ? `(${(taxRate * 100).toFixed(2)}%)` : ''}</span>
+                  <span>{taxAmount > 0 ? formatPrice(taxAmount) : (shippingCost === null ? 'Calculated at checkout' : formatPrice(0))}</span>
                 </div>
 
                 <div className="flex justify-between font-bold text-lg">

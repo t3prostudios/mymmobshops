@@ -59,7 +59,7 @@ export type Product = {
 
 export type CartItem = {
   id: string;
-  product: Product & { variant?: ProductVariant | Product['variants'][0] };
+  product: Product & { variant?: ProductVariant | NonNullable<Product['variants']>[number] };
   quantity: number;
 };
 
@@ -112,6 +112,8 @@ export type Order = {
     price: number;
   }[];
   total: number;
+  taxAmount?: number;
+  taxRate?: number;
   createdAt: {
     seconds: number;
     nanoseconds: number;
@@ -152,4 +154,5 @@ export interface ShippingAddress {
   country: string;
   state: string;
   city: string;
+  postalCode?: string;
 }
