@@ -1,6 +1,6 @@
 
 import Stripe from 'stripe';
-import { allProducts as localProducts } from '@/lib/data';
+import { localProductMedia as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
 
 export const getStripeClient = () => {
@@ -128,7 +128,7 @@ export async function getStripeProducts(): Promise<Product[]> {
       const priceObj = pricesRes.data.find(p => p.product === product.id);
       if (!priceObj) return null;
 
-      const local = localProducts.find(p => p.id === product.id);
+      const local = (localProducts || []).find((p: any) => p.id === product.id);
       
       const stripeWeight = product.metadata.weight ? parseFloat(product.metadata.weight) : null;
       const defaultWeight = stripeWeight || local?.weight || 8;
