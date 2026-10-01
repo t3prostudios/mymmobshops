@@ -150,12 +150,16 @@ export async function getStripeProducts(): Promise<Product[]> {
         };
       });
 
+      const stripeImages = (product.images || []).map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' }));
+      const images = stripeImages.length > 0 ? stripeImages : (local?.images || []);
+
       return {
         id: product.id,
         name: product.name,
         description: product.description || local?.description || '',
         price: priceObj.unit_amount ? priceObj.unit_amount / 100 : 0,
-        images: product.images.map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' })),
+        images,
+        hoverVideo: product.metadata.hoverVideo || local?.hoverVideo || '',
         category: product.metadata.category || local?.category || 'uncategorized',
         style: product.metadata.style || local?.style || 'default',
         stock,
