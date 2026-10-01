@@ -151,7 +151,11 @@ export async function getStripeProducts(): Promise<Product[]> {
       });
 
       const stripeImages = (product.images || []).map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' }));
-      const images = stripeImages.length > 0 ? stripeImages : (local?.images || []);
+      const images = stripeImages.length > 0 
+        ? stripeImages 
+        : (local?.images && local.images.length > 0 
+          ? local.images 
+          : [{ id: 'img-default', url: '/images/mmob-display00.png', description: product.name, hint: '' }]);
 
       return {
         id: product.id,

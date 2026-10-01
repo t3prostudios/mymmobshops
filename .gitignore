@@ -34,3 +34,6 @@ next-env.d.ts
 
 # accidental folders
 /usr
+
+# firebase hosting build output
+.firebase/
