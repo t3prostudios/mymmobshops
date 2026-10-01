@@ -1,6 +1,6 @@
 
 import Stripe from 'stripe';
-import { localProductMedia as localProducts } from '@/lib/data';
+import { allProducts as localProducts } from '@/lib/data';
 import type { Product, Stock } from '@/types';
 
 export const getStripeClient = () => {
@@ -128,7 +128,7 @@ export async function getStripeProducts(): Promise<Product[]> {
       const priceObj = pricesRes.data.find(p => p.product === product.id);
       if (!priceObj) return null;
 
-      const local = (localProducts || []).find((p: any) => p.id === product.id);
+      const local = localProducts.find(p => p.id === product.id);
       
       const stripeWeight = product.metadata.weight ? parseFloat(product.metadata.weight) : null;
       const defaultWeight = stripeWeight || local?.weight || 8;
@@ -150,20 +150,12 @@ export async function getStripeProducts(): Promise<Product[]> {
         };
       });
 
-      const stripeImages = (product.images || []).map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' }));
-      const images = stripeImages.length > 0 
-        ? stripeImages 
-        : (local?.images && local.images.length > 0 
-          ? local.images 
-          : [{ id: 'img-default', url: '/images/mmob-display00.png', description: product.name, hint: '' }]);
-
       return {
         id: product.id,
         name: product.name,
         description: product.description || local?.description || '',
         price: priceObj.unit_amount ? priceObj.unit_amount / 100 : 0,
-        images,
-        hoverVideo: product.metadata.hoverVideo || local?.hoverVideo || '',
+        images: product.images.map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' })),
         category: product.metadata.category || local?.category || 'uncategorized',
         style: product.metadata.style || local?.style || 'default',
         stock,
