@@ -122,7 +122,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                   loop
                   playsInline
                   className={cn(
-                    "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+                    "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none",
                     (isHovered || !displayImage) ? "opacity-100" : "opacity-0"
                   )}
                 />
