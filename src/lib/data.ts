@@ -35,7 +35,9 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     category: 'tops',
     style: 'hoodies',
     features: ['Heavyweight fleece', 'Kangaroo pocket', 'Ribbed cuffs'],
-    images: [], // Empty to force auto-play video display
+    images: [
+      { id: 'img-1', url: '/images/product-5-front.jpg', description: 'Original Logo Hoodie', hint: 'hoodie front' }
+    ],
     hoverVideo: '/images/product-5-vid.mp4',
     sizes: [],
     colors: []
@@ -49,7 +51,9 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     category: 'bottoms',
     style: 'pants',
     features: ['Premium cotton blend', 'Elastic waistband', 'Deep pockets'],
-    images: [], // Empty to force auto-play video display
+    images: [
+      { id: 'img-1', url: '/images/product-4-front.jpg', description: 'Original Logo Joggers', hint: 'joggers front' }
+    ],
     hoverVideo: '/images/product-4-vid.mp4',
     sizes: [],
     colors: []
@@ -109,9 +113,9 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     style: 'hats',
     features: ['Adjustable snapback', 'Breathable mesh'],
     images: [
-      { id: 'img-1', url: '/Create-Ur-look-Trans/1040.png', description: 'Hat View', hint: 'hat' }
+      { id: 'img-1', url: '/images/product-1-front1.jpg', description: 'Hat View', hint: 'hat' }
     ],
-    hoverVideo: '',
+    hoverVideo: '/images/product-1-vid.mp4',
     sizes: [],
     colors: []
   },
@@ -147,7 +151,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: []
   },
   {
-    id: 'prod_RntFrszv6v06UK',
+    id: 'prod_Tm0oaOc4TsZFrM',
     name: "Original Logo Tee - Kids",
     description: 'Durable and soft tees for the youth.',
     weight: 5,
@@ -162,7 +166,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: []
   },
   {
-    id: 'prod_RnvFrszv6v06UK',
+    id: 'prod_UGmJAsWNuw1VOa',
     name: "Original Logo Hoodie - Kids",
     description: 'Warm and cozy hoodies for kids.',
     weight: 14,
@@ -208,7 +212,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
     colors: []
   },
   {
-    id: 'prod_RnwFrszv6v06UK',
+    id: 'prod_TlO9hSyBakBOFx',
     name: 'MMOB Premium Woven Patch Hoodie',
     description: 'Signature original logo woven patch.',
     weight: 0.5,
@@ -223,7 +227,7 @@ const products: Omit<Product, 'price' | 'stock'>[] = [
   }
 ];
 
-export { products as localProductMedia };
+export { products as localProductMedia, products as allProducts };
 
 export function getCategories(): Category[] {
   return [

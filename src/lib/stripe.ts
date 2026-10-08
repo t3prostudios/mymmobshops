@@ -128,7 +128,11 @@ export async function getStripeProducts(): Promise<Product[]> {
       const priceObj = pricesRes.data.find(p => p.product === product.id);
       if (!priceObj) return null;
 
-      const local = (localProducts || []).find((p: any) => p.id === product.id);
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const local = (localProducts || []).find((p: any) => 
+        (p.id && p.id === product.id) || 
+        (p.name && product.name && normalize(p.name) === normalize(product.name))
+      );
       
       const stripeWeight = product.metadata.weight ? parseFloat(product.metadata.weight) : null;
       const defaultWeight = stripeWeight || local?.weight || 8;
@@ -151,11 +155,27 @@ export async function getStripeProducts(): Promise<Product[]> {
       });
 
       const stripeImages = (product.images || []).map((url, i) => ({ id: `img-${i}`, url, description: product.name, hint: '' }));
-      const images = stripeImages.length > 0 
-        ? stripeImages 
-        : (local?.images && local.images.length > 0 
-          ? local.images 
-          : [{ id: 'img-default', url: '/images/mmob-display00.png', description: product.name, hint: '' }]);
+      
+      // Prioritize photos and hover videos from the codebase for products defined in code;
+      // for any products not in the codebase, use photos assigned in Stripe inventory.
+      let images = [];
+      let hoverVideo = '';
+
+      if (local) {
+        if (local.images && local.images.length > 0) {
+          images = local.images;
+        } else if (stripeImages.length > 0) {
+          images = stripeImages;
+        } else {
+          images = [{ id: 'img-default', url: '/images/mmob-display00.png', description: product.name, hint: '' }];
+        }
+        hoverVideo = local.hoverVideo || product.metadata.hoverVideo || '';
+      } else {
+        images = stripeImages.length > 0 
+          ? stripeImages 
+          : [{ id: 'img-default', url: '/images/mmob-display00.png', description: product.name, hint: '' }];
+        hoverVideo = product.metadata.hoverVideo || '';
+      }
 
       return {
         id: product.id,
@@ -163,7 +183,7 @@ export async function getStripeProducts(): Promise<Product[]> {
         description: product.description || local?.description || '',
         price: priceObj.unit_amount ? priceObj.unit_amount / 100 : 0,
         images,
-        hoverVideo: product.metadata.hoverVideo || local?.hoverVideo || '',
+        hoverVideo,
         category: product.metadata.category || local?.category || 'uncategorized',
         style: product.metadata.style || local?.style || 'default',
         stock,
